@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Virtual Desktop Time</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; margin: 40px; color: #333; }
+        h1 { border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        .grid { display: grid; gap: 15px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); margin-top: 20px;}
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .desktop-name { font-weight: bold; font-size: 1.2em; color: #0078D7; display: block; margin-bottom: 5px;}
+        .time { font-size: 1.1em; color: #555; }
+    </style>
+</head>
+<body>
+    <h1>Today's Desktop Usage</h1>
+    <div id="summary" class="grid">Loading...</div>
+
+    <script>
+        async function fetchAndRenderData() {
+            try {
+                // Fetch the JSON file (adding a timestamp so the browser doesn't cache old data)
+                const response = await fetch('desktop_data.json?t=' + new Date().getTime());
+                const data = await response.json();
+                
+                // Get today's local date formatted as YYYY-MM-DD
+                const d = new Date();
+                const todayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+                const todaysData = data[todayStr] || {};
+                const summaryDiv = document.getElementById('summary');
+                summaryDiv.innerHTML = ''; // Clear loading text
+
+                if (Object.keys(todaysData).length === 0) {
+                    summaryDiv.innerHTML = '<p>No data recorded for today yet.</p>';
+                    return;
+                }
+
+                // Loop through today's desktops and convert seconds to hours/minutes
+                for (const [desktop, seconds] of Object.entries(todaysData)) {
+                    const hours = Math.floor(seconds / 3600);
+                    const minutes = Math.floor((seconds % 3600) / 60);
+                    
+                    let timeText = "";
+                    if (hours > 0) timeText += `${hours} hr `;
+                    timeText += `${minutes} min`;
+
+                    const div = document.createElement('div');
+                    div.className = 'card';
+                    div.innerHTML = `<span class="desktop-name">${desktop}</span><span class="time">${timeText}</span>`;
+                    summaryDiv.appendChild(div);
+                }
+            } catch (error) {
+                document.getElementById('summary').innerHTML = '<p style="color:red;">Error loading data. Make sure both Python scripts are running.</p>';
+            }
+        }
+
+        // Run immediately, then check for updates every 10 seconds
+        fetchAndRenderData();
+        setInterval(fetchAndRenderData, 10000);
+    </script>
+</body>
+</html>
