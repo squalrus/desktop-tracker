@@ -4,7 +4,7 @@ A lightweight, background productivity tool that monitors how much time you spen
 
 This is perfect for freelancers, remote workers, or anyone looking to separate their "Work" desktop context from their "Personal" desktop context natively within Windows.
 
-<img width="2049" height="324" alt="image" src="https://github.com/user-attachments/assets/50fc6169-9b68-4263-8228-4c15ab2a02f8" />
+<img width="1002" height="330" alt="image" src="https://github.com/user-attachments/assets/c003c0c8-310d-4d88-b6ee-e57aa0bdf6ac" />
 
 ## ✨ Features
 
