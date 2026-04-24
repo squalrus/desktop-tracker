@@ -4,6 +4,8 @@ A lightweight, background productivity tool that monitors how much time you spen
 
 This is perfect for freelancers, remote workers, or anyone looking to separate their "Work" desktop context from their "Personal" desktop context natively within Windows.
 
+<img width="2049" height="324" alt="image" src="https://github.com/user-attachments/assets/50fc6169-9b68-4263-8228-4c15ab2a02f8" />
+
 ## ✨ Features
 
 * **System Tray Integration:** Runs silently in the background. Access the dashboard or quit the app directly from your Windows taskbar.
