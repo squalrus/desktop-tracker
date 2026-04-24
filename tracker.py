@@ -2,11 +2,33 @@ import time
 import json
 import os
 import ctypes
+import threading
+import webbrowser
+import http.server
+import socketserver
 from datetime import date
 from pyvda import VirtualDesktop
+import pystray
+from PIL import Image, ImageDraw
 
-# The file where our data will be saved
+# Configuration
 DATA_FILE = "desktop_data.json"
+PORT = 8000
+IDLE_THRESHOLD_SECONDS = 300  # 5 minutes of no mouse/keyboard input
+
+tracking_active = True
+
+# --- Windows API Helpers ---
+class LASTINPUTINFO(ctypes.Structure):
+    _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
+
+def get_idle_time():
+    """Returns the system idle time in seconds."""
+    lii = LASTINPUTINFO()
+    lii.cbSize = ctypes.sizeof(LASTINPUTINFO)
+    ctypes.windll.user32.GetLastInputInfo(ctypes.byref(lii))
+    millis = ctypes.windll.kernel32.GetTickCount() - lii.dwTime
+    return millis / 1000.0
 
 def is_computer_locked():
     """Checks if the Windows workstation is currently locked."""
@@ -14,22 +36,15 @@ def is_computer_locked():
     OpenDesktop = user32.OpenDesktopW
     SwitchDesktop = user32.SwitchDesktop
     CloseDesktop = user32.CloseDesktop
-    
-    # Access rights flag required to switch desktops
     DESKTOP_SWITCHDESKTOP = 0x0100
-
-    # Try to open the default desktop
     hDesktop = OpenDesktop("default", 0, False, DESKTOP_SWITCHDESKTOP)
-    
     if hDesktop:
-        # If we can't switch to the default desktop, the screen is locked
         result = SwitchDesktop(hDesktop)
         CloseDesktop(hDesktop)
         return not result
-    
-    # If we can't even open the default desktop, assume it's locked
     return True
 
+# --- Data Management ---
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
@@ -40,41 +55,77 @@ def save_data(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-def main():
-    print("Tracking started! Leave this window open (or minimize it). Press Ctrl+C to stop.")
+# --- Background Threads ---
+class QuietHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Override the default logging to do absolutely nothing. 
+        # This prevents pythonw.exe from crashing when it tries to print to a missing console.
+        pass
+
+def tracker_loop():
     data = load_data()
     loop_count = 0
-
-    while True:
-        # 1. Check if the computer is locked first!
-        if not is_computer_locked():
-            
+    while tracking_active:
+        # Check lock state AND idle time
+        if not is_computer_locked() and get_idle_time() < IDLE_THRESHOLD_SECONDS:
             today = str(date.today())
             if today not in data:
                 data[today] = {}
-
             try:
-                # Grab the current active virtual desktop
                 current = VirtualDesktop.current()
                 name = current.name if current.name else f"Desktop {current.number}"
-
                 if name not in data[today]:
                     data[today][name] = 0
-
-                # Add one second only if unlocked
                 data[today][name] += 1
-
-            except Exception as e:
-                print(f"Error accessing desktop: {e}")
-
-        # Wait 1 second (we still wait 1 second even if locked, so it doesn't spin out of control)
+            except Exception:
+                pass # Silently fail to avoid crashing if pyvda hiccups
+        
         time.sleep(1)
-
-        # Save to the JSON file every 5 seconds
         loop_count += 1
         if loop_count >= 5:
             save_data(data)
             loop_count = 0
+
+def server_loop():
+    socketserver.TCPServer.allow_reuse_address = True
+    # Bind specifically to localhost (127.0.0.1) to avoid Windows Firewall silent blocks
+    with socketserver.TCPServer(("127.0.0.1", PORT), QuietHandler) as httpd:
+        while tracking_active:
+            httpd.handle_request()
+
+# --- System Tray Functions ---
+def create_image():
+    # Generate a simple blue icon with a white square for the tray
+    image = Image.new('RGB', (64, 64), color=(0, 120, 215))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle([16, 16, 48, 48], fill="white")
+    return image
+
+def open_dashboard(icon, item):
+    webbrowser.open(f"http://localhost:{PORT}")
+
+def exit_action(icon, item):
+    global tracking_active
+    tracking_active = False
+    icon.stop()
+    os._exit(0) # Force close all daemon threads
+
+def main():
+    # Start tracking thread
+    t_thread = threading.Thread(target=tracker_loop, daemon=True)
+    t_thread.start()
+
+    # Start web server thread
+    s_thread = threading.Thread(target=server_loop, daemon=True)
+    s_thread.start()
+
+    # Start System Tray Icon (This blocks the main thread)
+    menu = pystray.Menu(
+        pystray.MenuItem("Open Dashboard", open_dashboard, default=True),
+        pystray.MenuItem("Quit", exit_action)
+    )
+    icon = pystray.Icon("DesktopTracker", create_image(), "Desktop Tracker", menu)
+    icon.run()
 
 if __name__ == "__main__":
     main()
