@@ -110,16 +110,18 @@
     <div id="summary" class="grid">Loading...</div>
 
     <script>
-        // Helper function to format seconds into hrs/mins
+        // Helper function to format seconds into hrs/mins/secs
         function formatTime(totalSeconds) {
             const hours = Math.floor(totalSeconds / 3600);
             const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
             
             let timeText = "";
             if (hours > 0) timeText += `${hours} hr `;
-            timeText += `${minutes} min`;
+            if (minutes > 0 || hours > 0) timeText += `${minutes} min `;
+            timeText += `${seconds} sec`;
             
-            return timeText || "0 min";
+            return timeText.trim();
         }
 
         async function fetchAndRenderData() {
@@ -140,7 +142,7 @@
 
                 if (Object.keys(todaysData).length === 0) {
                     summaryDiv.innerHTML = '<p>No data recorded for today yet.</p>';
-                    totalDiv.innerText = "Total Time Tracked: 0 min";
+                    totalDiv.innerText = "Total Time Tracked: 0 sec";
                     return;
                 }
 
