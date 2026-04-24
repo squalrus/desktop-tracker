@@ -117,9 +117,9 @@
             const seconds = totalSeconds % 60;
             
             let timeText = "";
-            if (hours > 0) timeText += `${hours} hr `;
-            if (minutes > 0 || hours > 0) timeText += `${minutes} min `;
-            timeText += `${seconds} sec`;
+            if (hours > 0) timeText += `${hours}h `;
+            if (minutes > 0 || hours > 0) timeText += `${minutes}m `;
+            timeText += `${seconds}s`;
             
             return timeText.trim();
         }
