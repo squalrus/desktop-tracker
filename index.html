@@ -4,22 +4,127 @@
     <meta charset="UTF-8">
     <title>Virtual Desktop Time</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; margin: 40px; color: #333; }
-        h1 { border-bottom: 2px solid #ddd; padding-bottom: 10px; }
-        .grid { display: grid; gap: 15px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); margin-top: 20px;}
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .desktop-name { font-weight: bold; font-size: 1.2em; color: #0078D7; display: block; margin-bottom: 5px;}
-        .time { font-size: 1.1em; color: #555; }
+        /* CSS Variables for automatic Light/Dark Mode switching */
+        :root {
+            --bg-color: #f3f4f6;
+            --text-color: #333333;
+            --text-muted: #555555;
+            --card-bg: #ffffff;
+            --card-shadow: rgba(0, 0, 0, 0.05);
+            --border-color: #dddddd;
+            --accent-color: #0078D7;
+            --bar-bg: #e5e7eb;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #121212;
+                --text-color: #e5e7eb;
+                --text-muted: #9ca3af;
+                --card-bg: #1e1e1e;
+                --card-shadow: rgba(0, 0, 0, 0.3);
+                --border-color: #333333;
+                --accent-color: #60a5fa;
+                --bar-bg: #374151;
+            }
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-color);
+            margin: 40px; 
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        h1 { 
+            border-bottom: 2px solid var(--border-color); 
+            padding-bottom: 10px; 
+            margin-bottom: 5px;
+        }
+
+        .total-time {
+            font-size: 1.2em;
+            color: var(--text-muted);
+            margin-bottom: 30px;
+        }
+
+        .grid { 
+            display: grid; 
+            gap: 15px; 
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+        }
+
+        .card { 
+            background: var(--card-bg); 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 6px var(--card-shadow); 
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .desktop-name { 
+            font-weight: bold; 
+            font-size: 1.2em; 
+            color: var(--accent-color); 
+        }
+
+        .time { 
+            font-size: 1.1em; 
+            color: var(--text-muted); 
+        }
+
+        .progress-container {
+            width: 100%;
+            background-color: var(--bar-bg);
+            border-radius: 4px;
+            height: 12px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--accent-color);
+            transition: width 0.5s ease-in-out;
+        }
+
+        .percentage {
+            font-size: 0.85em;
+            color: var(--text-muted);
+            float: right;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
     <h1>Today's Desktop Usage</h1>
+    <div id="total-display" class="total-time">Calculating total time...</div>
+    
     <div id="summary" class="grid">Loading...</div>
 
     <script>
+        // Helper function to format seconds into hrs/mins
+        function formatTime(totalSeconds) {
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            
+            let timeText = "";
+            if (hours > 0) timeText += `${hours} hr `;
+            timeText += `${minutes} min`;
+            
+            return timeText || "0 min";
+        }
+
         async function fetchAndRenderData() {
             try {
-                // Fetch the JSON file (adding a timestamp so the browser doesn't cache old data)
+                // Fetch JSON with cache-busting timestamp
                 const response = await fetch('desktop_data.json?t=' + new Date().getTime());
                 const data = await response.json();
                 
@@ -29,33 +134,54 @@
 
                 const todaysData = data[todayStr] || {};
                 const summaryDiv = document.getElementById('summary');
-                summaryDiv.innerHTML = ''; // Clear loading text
+                const totalDiv = document.getElementById('total-display');
+                
+                summaryDiv.innerHTML = ''; 
 
                 if (Object.keys(todaysData).length === 0) {
                     summaryDiv.innerHTML = '<p>No data recorded for today yet.</p>';
+                    totalDiv.innerText = "Total Time Tracked: 0 min";
                     return;
                 }
 
-                // Loop through today's desktops and convert seconds to hours/minutes
+                // 1. Calculate overall total seconds for the day
+                let totalSecondsOverall = 0;
+                for (const seconds of Object.values(todaysData)) {
+                    totalSecondsOverall += seconds;
+                }
+
+                // Update the overall total UI
+                totalDiv.innerText = `Total Time Tracked: ${formatTime(totalSecondsOverall)}`;
+
+                // 2. Build the cards with percentage bars
                 for (const [desktop, seconds] of Object.entries(todaysData)) {
-                    const hours = Math.floor(seconds / 3600);
-                    const minutes = Math.floor((seconds % 3600) / 60);
-                    
-                    let timeText = "";
-                    if (hours > 0) timeText += `${hours} hr `;
-                    timeText += `${minutes} min`;
+                    // Calculate percentage
+                    let percentage = 0;
+                    if (totalSecondsOverall > 0) {
+                        percentage = ((seconds / totalSecondsOverall) * 100).toFixed(1);
+                    }
 
                     const div = document.createElement('div');
                     div.className = 'card';
-                    div.innerHTML = `<span class="desktop-name">${desktop}</span><span class="time">${timeText}</span>`;
+                    div.innerHTML = `
+                        <div class="card-header">
+                            <span class="desktop-name">${desktop}</span>
+                            <span class="time">${formatTime(seconds)}</span>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar" style="width: ${percentage}%"></div>
+                        </div>
+                        <span class="percentage">${percentage}%</span>
+                        <div style="clear: both;"></div>
+                    `;
                     summaryDiv.appendChild(div);
                 }
             } catch (error) {
-                document.getElementById('summary').innerHTML = '<p style="color:red;">Error loading data. Make sure both Python scripts are running.</p>';
+                document.getElementById('summary').innerHTML = '<p style="color:#ef4444;">Error loading data. Make sure both Python scripts are running.</p>';
             }
         }
 
-        // Run immediately, then check for updates every 10 seconds
+        // Run immediately, then update every 10 seconds
         fetchAndRenderData();
         setInterval(fetchAndRenderData, 10000);
     </script>
