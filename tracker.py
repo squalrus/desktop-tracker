@@ -56,6 +56,12 @@ def save_data(data):
         json.dump(data, f, indent=4)
 
 # --- Background Threads ---
+class QuietHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Override the default logging to do absolutely nothing. 
+        # This prevents pythonw.exe from crashing when it tries to print to a missing console.
+        pass
+
 def tracker_loop():
     data = load_data()
     loop_count = 0
@@ -81,9 +87,9 @@ def tracker_loop():
             loop_count = 0
 
 def server_loop():
-    Handler = http.server.SimpleHTTPRequestHandler
     socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", PORT), Handler) as httpd:
+    # Bind specifically to localhost (127.0.0.1) to avoid Windows Firewall silent blocks
+    with socketserver.TCPServer(("127.0.0.1", PORT), QuietHandler) as httpd:
         while tracking_active:
             httpd.handle_request()
 
