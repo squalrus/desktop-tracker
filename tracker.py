@@ -26,7 +26,7 @@ os.chdir(application_path)
 DATA_FILE = os.path.join(application_path, "desktop_data.json")
 ICO_FILENAME = os.path.join(application_path, "icon.ico")
 PORT = 8000
-IDLE_THRESHOLD_SECONDS = 300 
+IDLE_THRESHOLD_SECONDS = 300
 
 tracking_active = True
 
@@ -70,7 +70,7 @@ def save_data(data):
 # --- Background Threads ---
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
-        # Override the default logging to do absolutely nothing. 
+        # Override the default logging to do absolutely nothing.
         # This prevents pythonw.exe from crashing when it tries to print to a missing console.
         pass
 
@@ -91,7 +91,7 @@ def tracker_loop():
                 data[today][name] += 1
             except Exception:
                 pass # Silently fail to avoid crashing if pyvda hiccups
-        
+
         time.sleep(1)
         loop_count += 1
         if loop_count >= 5:
@@ -113,7 +113,7 @@ def load_icon_image():
             return Image.open(ICO_FILENAME)
         except Exception as e:
             print(f"Error loading icon: {e}")
-            
+
     # Fallback: create a generic error image if loading fails
     from PIL import ImageDraw
     fallback_image = Image.new('RGB', (64, 64), color=(255, 0, 0)) # Red
