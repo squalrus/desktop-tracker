@@ -9,12 +9,15 @@ import socketserver
 from datetime import date
 from pyvda import VirtualDesktop
 import pystray
-from PIL import Image, ImageDraw
+from PIL import Image # Pillow library already used for loading
 
 # Configuration
 DATA_FILE = "desktop_data.json"
 PORT = 8000
 IDLE_THRESHOLD_SECONDS = 300  # 5 minutes of no mouse/keyboard input
+
+# New Configuration for External Icons
+ICO_FILENAME = "icon.ico" 
 
 tracking_active = True
 
@@ -94,12 +97,19 @@ def server_loop():
             httpd.handle_request()
 
 # --- System Tray Functions ---
-def create_image():
-    # Generate a simple blue icon with a white square for the tray
-    image = Image.new('RGB', (64, 64), color=(0, 120, 215))
-    draw = ImageDraw.Draw(image)
-    draw.rectangle([16, 16, 48, 48], fill="white")
-    return image
+def load_icon_image():
+    """Loads the customized ICO file from disk."""
+    if os.path.exists(ICO_FILENAME):
+        try:
+            return Image.open(ICO_FILENAME)
+        except Exception as e:
+            print(f"Error loading icon: {e}")
+            
+    # Fallback: create a generic error image if loading fails
+    from PIL import ImageDraw
+    fallback_image = Image.new('RGB', (64, 64), color=(255, 0, 0)) # Red
+    ImageDraw.Draw(fallback_image).rectangle([16, 16, 48, 48], fill="white")
+    return fallback_image
 
 def open_dashboard(icon, item):
     webbrowser.open(f"http://localhost:{PORT}")
@@ -124,7 +134,8 @@ def main():
         pystray.MenuItem("Open Dashboard", open_dashboard, default=True),
         pystray.MenuItem("Quit", exit_action)
     )
-    icon = pystray.Icon("DesktopTracker", create_image(), "Desktop Tracker", menu)
+    # New: Use the load_icon_image() function
+    icon = pystray.Icon("DesktopTracker", load_icon_image(), "Desktop Tracker", menu)
     icon.run()
 
 if __name__ == "__main__":
