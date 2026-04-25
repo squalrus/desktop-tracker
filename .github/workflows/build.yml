@@ -30,7 +30,7 @@ jobs:
       # --onefile packages everything into a single DesktopTracker.exe
       # --icon applies the custom icon to the .exe file itself
       run: |
-        pyinstaller --noconsole --onefile --icon=icon.ico --name "DesktopTracker" tracker.py
+        pyinstaller --noconsole --onefile --icon=icon.ico --name "DesktopTracker" --collect-all pyvda tracker.py
 
     - name: Prepare Release Folder
       run: |
