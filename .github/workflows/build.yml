@@ -1,10 +1,9 @@
 name: Build Windows Executable
 
-# This triggers the build every time you push to the main branch
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: # Allows you to run it manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
   build:
@@ -26,8 +25,8 @@ jobs:
 
     - name: Build Executable with PyInstaller
       # --noconsole hides the terminal window
-      # --onefile packages it into a single Tracker.exe
-      # --icon applies your custom icon to the .exe file itself
+      # --onefile packages everything into a single DesktopTracker.exe
+      # --icon applies the custom icon to the .exe file itself
       run: |
         pyinstaller --noconsole --onefile --icon=icon.ico --name "DesktopTracker" tracker.py
 
@@ -43,5 +42,14 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: DesktopTracker-Windows
+        name: DesktopTracker-Windows-${{ github.run_number }}
         path: Release\*
+
+    - name: Create GitHub Release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: bash
+      run: |
+        gh release create "build-${{ github.run_number }}" Release/* \
+          --title "Build ${{ github.run_number }}" \
+          --notes "Automated build from commit ${{ github.sha }}"
