@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import ctypes
+import tempfile
 import threading
 import webbrowser
 import http.server
@@ -12,14 +13,13 @@ from pyvda import VirtualDesktop
 import pystray
 from PIL import Image, ImageDraw
 
-# --- NEW: Path Resolution for PyInstaller ---
-# This ensures the app always looks in the folder where the .exe lives
+# Path resolution for PyInstaller: look in the folder where the .exe lives,
+# not the temp extraction directory.
 if getattr(sys, 'frozen', False):
     application_path = os.path.dirname(sys.executable)
 else:
     application_path = os.path.dirname(os.path.abspath(__file__))
 
-# Change the working directory so the web server finds index.html
 os.chdir(application_path)
 
 # Configuration
@@ -29,121 +29,146 @@ PORT = 8000
 IDLE_THRESHOLD_SECONDS = 300
 
 tracking_active = True
+tracking_data = {}
+data_lock = threading.Lock()
+
+# Set up GetTickCount64 once at module level to avoid 32-bit wraparound after ~49 days.
+_GetTickCount64 = ctypes.windll.kernel32.GetTickCount64
+_GetTickCount64.restype = ctypes.c_uint64
+
+# --- Duplicate instance guard ---
+def acquire_instance_mutex():
+    """Returns a Windows named mutex, or None if another instance is already running."""
+    ERROR_ALREADY_EXISTS = 183
+    mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "DesktopTrackerMutex")
+    if ctypes.windll.kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
+        if mutex:
+            ctypes.windll.kernel32.CloseHandle(mutex)
+        return None
+    return mutex
 
 # --- Windows API Helpers ---
 class LASTINPUTINFO(ctypes.Structure):
     _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
 
 def get_idle_time():
-    """Returns the system idle time in seconds."""
     lii = LASTINPUTINFO()
     lii.cbSize = ctypes.sizeof(LASTINPUTINFO)
     ctypes.windll.user32.GetLastInputInfo(ctypes.byref(lii))
-    millis = ctypes.windll.kernel32.GetTickCount() - lii.dwTime
+    millis = _GetTickCount64() - lii.dwTime
     return millis / 1000.0
 
 def is_computer_locked():
-    """Checks if the Windows workstation is currently locked."""
     user32 = ctypes.windll.User32
-    OpenDesktop = user32.OpenDesktopW
-    SwitchDesktop = user32.SwitchDesktop
-    CloseDesktop = user32.CloseDesktop
     DESKTOP_SWITCHDESKTOP = 0x0100
-    hDesktop = OpenDesktop("default", 0, False, DESKTOP_SWITCHDESKTOP)
+    hDesktop = user32.OpenDesktopW("default", 0, False, DESKTOP_SWITCHDESKTOP)
     if hDesktop:
-        result = SwitchDesktop(hDesktop)
-        CloseDesktop(hDesktop)
+        result = user32.SwitchDesktop(hDesktop)
+        user32.CloseDesktop(hDesktop)
         return not result
     return True
 
 # --- Data Management ---
 def load_data():
     if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(DATA_FILE, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass  # Corrupted or unreadable — start fresh
     return {}
 
 def save_data(data):
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+    """Atomically write data to disk using a temp file + os.replace."""
+    dir_ = os.path.dirname(DATA_FILE)
+    try:
+        fd, tmp_path = tempfile.mkstemp(dir=dir_, suffix=".tmp")
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=4)
+        os.replace(tmp_path, DATA_FILE)
+    except OSError:
+        pass
 
 # --- Background Threads ---
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
-        # Override the default logging to do absolutely nothing.
-        # This prevents pythonw.exe from crashing when it tries to print to a missing console.
+        # Suppress all HTTP logs — pythonw.exe crashes if it tries to print
+        # to a missing console.
         pass
 
 def tracker_loop():
-    data = load_data()
     loop_count = 0
     while tracking_active:
-        # Check lock state AND idle time
         if not is_computer_locked() and get_idle_time() < IDLE_THRESHOLD_SECONDS:
             today = str(date.today())
-            if today not in data:
-                data[today] = {}
-            try:
-                current = VirtualDesktop.current()
-                name = current.name if current.name else f"Desktop {current.number}"
-                if name not in data[today]:
-                    data[today][name] = 0
-                data[today][name] += 1
-            except Exception:
-                pass # Silently fail to avoid crashing if pyvda hiccups
+            with data_lock:
+                if today not in tracking_data:
+                    tracking_data[today] = {}
+                try:
+                    current = VirtualDesktop.current()
+                    name = current.name if current.name else f"Desktop {current.number}"
+                    tracking_data[today][name] = tracking_data[today].get(name, 0) + 1
+                except Exception:
+                    pass
 
         time.sleep(1)
         loop_count += 1
         if loop_count >= 5:
-            save_data(data)
+            with data_lock:
+                save_data(tracking_data)
             loop_count = 0
 
 def server_loop():
     socketserver.TCPServer.allow_reuse_address = True
-    # Bind specifically to localhost (127.0.0.1) to avoid Windows Firewall silent blocks
+    # Bind to 127.0.0.1 explicitly to avoid Windows Firewall silent blocks.
     with socketserver.TCPServer(("127.0.0.1", PORT), QuietHandler) as httpd:
         while tracking_active:
             httpd.handle_request()
 
 # --- System Tray Functions ---
 def load_icon_image():
-    """Loads the customized ICO file from disk."""
     if os.path.exists(ICO_FILENAME):
         try:
             return Image.open(ICO_FILENAME)
-        except Exception as e:
-            print(f"Error loading icon: {e}")
+        except Exception:
+            pass  # Fall through to fallback
 
-    # Fallback: create a generic error image if loading fails
-    from PIL import ImageDraw
-    fallback_image = Image.new('RGB', (64, 64), color=(255, 0, 0)) # Red
+    fallback_image = Image.new('RGB', (64, 64), color=(255, 0, 0))
     ImageDraw.Draw(fallback_image).rectangle([16, 16, 48, 48], fill="white")
     return fallback_image
 
 def open_dashboard(icon, item):
-    webbrowser.open(f"http://localhost:{PORT}")
+    # Use 127.0.0.1 to match the server binding and avoid IPv6 ambiguity.
+    webbrowser.open(f"http://127.0.0.1:{PORT}")
 
 def exit_action(icon, item):
-    global tracking_active
-    tracking_active = False
+    with data_lock:
+        save_data(tracking_data)
     icon.stop()
-    os._exit(0) # Force close all daemon threads
+    os._exit(0)
 
 def main():
-    # Start tracking thread
+    global tracking_data
+
+    mutex = acquire_instance_mutex()
+    if mutex is None:
+        # Another instance is already running; open its dashboard instead.
+        webbrowser.open(f"http://127.0.0.1:{PORT}")
+        sys.exit(0)
+
+    # Load persisted data before threads start to avoid a race with exit_action.
+    tracking_data = load_data()
+
     t_thread = threading.Thread(target=tracker_loop, daemon=True)
     t_thread.start()
 
-    # Start web server thread
     s_thread = threading.Thread(target=server_loop, daemon=True)
     s_thread.start()
 
-    # Start System Tray Icon (This blocks the main thread)
     menu = pystray.Menu(
         pystray.MenuItem("Open Dashboard", open_dashboard, default=True),
         pystray.MenuItem("Quit", exit_action)
     )
-    # New: Use the load_icon_image() function
     icon = pystray.Icon("DesktopTracker", load_icon_image(), "Desktop Tracker", menu)
     icon.run()
 

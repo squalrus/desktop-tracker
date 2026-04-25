@@ -124,7 +124,7 @@
     <div id="summary" class="grid">Loading...</div>
 
     <script>
-      let globalData = {}; // Store fetched data
+      let globalData = {};
 
       function formatTime(totalSeconds) {
         const hours = Math.floor(totalSeconds / 3600);
@@ -151,7 +151,6 @@
         const datePicker = document.getElementById('date-picker');
         let selectedDate = datePicker.value;
 
-        // If no date selected, default to today
         if (!selectedDate) {
           const d = new Date();
           selectedDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -164,52 +163,100 @@
         summaryDiv.innerHTML = '';
 
         if (Object.keys(dayData).length === 0) {
-          summaryDiv.innerHTML = `<p>No data recorded for ${selectedDate}.</p>`;
+          const p = document.createElement('p');
+          p.textContent = `No data recorded for ${selectedDate}.`;
+          summaryDiv.appendChild(p);
           totalDiv.innerText = 'Total Time Tracked: 0s';
           return;
         }
 
-        let totalSecondsOverall = Object.values(dayData).reduce((a, b) => a + b, 0);
+        const totalSecondsOverall = Object.values(dayData).reduce((a, b) => a + b, 0);
         totalDiv.innerText = `Total Time Tracked: ${formatTime(totalSecondsOverall)}`;
 
+        // Build all cards in a fragment to avoid repeated DOM re-parses.
+        const fragment = document.createDocumentFragment();
+
         for (const [desktop, seconds] of Object.entries(dayData)) {
-          let percentage = totalSecondsOverall > 0 ? ((seconds / totalSecondsOverall) * 100).toFixed(1) : 0;
-          summaryDiv.innerHTML += `
-                    <div class="card">
-                        <div class="card-header">
-                            <span class="desktop-name">${desktop}</span>
-                            <span class="time">${formatTime(seconds)}</span>
-                        </div>
-                        <div class="progress-container">
-                            <div class="progress-bar" style="width: ${percentage}%"></div>
-                        </div>
-                        <span class="percentage">${percentage}%</span>
-                        <div style="clear: both;"></div>
-                    </div>`;
+          const percentage = totalSecondsOverall > 0
+            ? ((seconds / totalSecondsOverall) * 100).toFixed(1)
+            : '0.0';
+
+          const card = document.createElement('div');
+          card.className = 'card';
+
+          const cardHeader = document.createElement('div');
+          cardHeader.className = 'card-header';
+
+          // Use textContent to prevent XSS from desktop names containing HTML.
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'desktop-name';
+          nameSpan.textContent = desktop;
+
+          const timeSpan = document.createElement('span');
+          timeSpan.className = 'time';
+          timeSpan.textContent = formatTime(seconds);
+
+          cardHeader.appendChild(nameSpan);
+          cardHeader.appendChild(timeSpan);
+
+          const progressContainer = document.createElement('div');
+          progressContainer.className = 'progress-container';
+
+          const progressBar = document.createElement('div');
+          progressBar.className = 'progress-bar';
+          progressBar.style.width = percentage + '%';
+          progressContainer.appendChild(progressBar);
+
+          const percentageSpan = document.createElement('span');
+          percentageSpan.className = 'percentage';
+          percentageSpan.textContent = percentage + '%';
+
+          const clearDiv = document.createElement('div');
+          clearDiv.style.clear = 'both';
+
+          card.appendChild(cardHeader);
+          card.appendChild(progressContainer);
+          card.appendChild(percentageSpan);
+          card.appendChild(clearDiv);
+
+          fragment.appendChild(card);
         }
+
+        summaryDiv.appendChild(fragment);
       }
 
-      // CSV Export functionality
+      // Wrap a CSV field value in double quotes if it contains commas, quotes, or newlines.
+      function csvEscape(value) {
+        const str = String(value);
+        if (/[,"\n\r]/.test(str)) {
+          return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+      }
+
       document.getElementById('export-btn').addEventListener('click', () => {
-        let csvContent = 'data:text/csv;charset=utf-8,Date,Desktop,Total Seconds,Formatted Time\n';
+        const rows = ['Date,Desktop,Total Seconds,Formatted Time'];
         for (const [dateKey, desktops] of Object.entries(globalData)) {
           for (const [desktop, seconds] of Object.entries(desktops)) {
-            csvContent += `${dateKey},${desktop},${seconds},${formatTime(seconds)}\n`;
+            rows.push(`${csvEscape(dateKey)},${csvEscape(desktop)},${seconds},${csvEscape(formatTime(seconds))}`);
           }
         }
-        const encodedUri = encodeURI(csvContent);
+
+        // Use a Blob + object URL instead of a data: URI so special characters
+        // in field values are not corrupted by encodeURI.
+        const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.setAttribute('href', encodedUri);
+        link.setAttribute('href', url);
         link.setAttribute('download', 'desktop_time_export.csv');
         document.body.appendChild(link);
         link.click();
         link.remove();
+        URL.revokeObjectURL(url);
       });
 
-      // Event listener for date picker
       document.getElementById('date-picker').addEventListener('change', renderData);
 
-      // Initial fetch and auto-refresh
       fetchAndRenderData();
       setInterval(fetchAndRenderData, 10000);
     </script>
