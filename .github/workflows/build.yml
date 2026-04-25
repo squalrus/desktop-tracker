@@ -1,0 +1,47 @@
+name: Build Windows Executable
+
+# This triggers the build every time you push to the main branch
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # Allows you to run it manually from the Actions tab
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller pyvda pystray Pillow
+
+    - name: Build Executable with PyInstaller
+      # --noconsole hides the terminal window
+      # --onefile packages it into a single Tracker.exe
+      # --icon applies your custom icon to the .exe file itself
+      run: |
+        pyinstaller --noconsole --onefile --icon=icon.ico --name "DesktopTracker" tracker.py
+
+    - name: Prepare Release Folder
+      run: |
+        mkdir Release
+        copy dist\DesktopTracker.exe Release\
+        copy index.html Release\
+        copy icon.png Release\
+        copy icon.ico Release\
+        copy install_autostart.bat Release\
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: DesktopTracker-Windows
+        path: Release\*
