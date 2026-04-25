@@ -79,13 +79,12 @@ def load_data():
     return {}
 
 def save_data(data):
-    """Atomically write data to disk using a temp file + os.replace."""
-    dir_ = os.path.dirname(DATA_FILE)
+    # Direct write is more reliable on Windows than tempfile+os.replace, which
+    # can raise PermissionError if the file is momentarily held by antivirus or
+    # the HTTP server.
     try:
-        fd, tmp_path = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-        with os.fdopen(fd, "w") as f:
+        with open(DATA_FILE, "w") as f:
             json.dump(data, f, indent=4)
-        os.replace(tmp_path, DATA_FILE)
     except OSError:
         pass
 
@@ -99,17 +98,20 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 def tracker_loop():
     loop_count = 0
     while tracking_active:
-        if not is_computer_locked() and get_idle_time() < IDLE_THRESHOLD_SECONDS:
-            today = str(date.today())
-            with data_lock:
-                if today not in tracking_data:
-                    tracking_data[today] = {}
-                try:
-                    current = VirtualDesktop.current()
-                    name = current.name if current.name else f"Desktop {current.number}"
-                    tracking_data[today][name] = tracking_data[today].get(name, 0) + 1
-                except Exception:
-                    pass
+        try:
+            if not is_computer_locked() and get_idle_time() < IDLE_THRESHOLD_SECONDS:
+                today = str(date.today())
+                with data_lock:
+                    if today not in tracking_data:
+                        tracking_data[today] = {}
+                    try:
+                        current = VirtualDesktop.current()
+                        name = current.name if current.name else f"Desktop {current.number}"
+                        tracking_data[today][name] = tracking_data[today].get(name, 0) + 1
+                    except Exception:
+                        pass
+        except Exception:
+            pass  # Prevent any Windows API failure from killing the thread
 
         time.sleep(1)
         loop_count += 1
