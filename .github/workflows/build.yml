@@ -41,17 +41,22 @@ jobs:
         copy icon.ico Release\
         copy install_autostart.bat Release\
 
+    - name: Zip Release Folder
+      shell: pwsh
+      run: |
+        Compress-Archive -Path Release\* -DestinationPath DesktopTracker-Windows.zip
+
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: DesktopTracker-Windows-${{ github.run_number }}
-        path: Release\*
+        path: DesktopTracker-Windows.zip
 
     - name: Create GitHub Release
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       shell: bash
       run: |
-        gh release create "build-${{ github.run_number }}" Release/* \
+        gh release create "build-${{ github.run_number }}" DesktopTracker-Windows.zip \
           --title "Build ${{ github.run_number }}" \
           --notes "Automated build from commit ${{ github.sha }}"
