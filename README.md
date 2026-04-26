@@ -17,6 +17,17 @@ This is perfect for freelancers, remote workers, or anyone looking to separate t
 
 ---
 
+## ⚡ Quick Start (No technical experience needed)
+
+1. Go to the [Releases page](../../releases) and download the latest `DesktopTracker-Windows` ZIP.
+2. Unzip it and move the folder to `C:\Program Files\DesktopTracker`.
+3. Double-click `DesktopTracker.exe` to start the tracker. A small icon will appear near your clock. If Windows shows a security warning, click **More info → Run anyway**.
+4. Double-click `install_autostart.bat` so the tracker starts automatically every time you log in.
+
+To open your dashboard, double-click the tray icon or visit `http://localhost:8000` in any browser.
+
+---
+
 ## 🚀 Option A: Pre-Built Executable (No Python Required)
 
 The easiest way to get started. Every push to `main` automatically builds a standalone `DesktopTracker.exe` via GitHub Actions — no Python installation needed.
