@@ -34,7 +34,7 @@ The easiest way to get started. Every push to `main` automatically builds a stan
 
 ### 1. Download the Latest Build
 
-Go to the [Actions tab](../../actions/workflows/build.yml) of this repository, click the most recent successful run, and download the `DesktopTracker-Windows` artifact.
+Go to the [Releases page](../../releases) and download the latest `DesktopTracker-Windows` ZIP.
 
 ### 2. Extract the ZIP
 
@@ -104,7 +104,7 @@ To have the tracker start automatically and invisibly every time you log into Wi
 1. Locate `install_autostart.bat` in the project folder.
 2. Double-click to run it.
 
-A command prompt will briefly appear confirming a silent launcher (`DesktopTracker.vbs`) has been added to your Windows Startup folder. The tracker will now start invisibly on every login using `pythonw.exe` (no terminal window).
+A command prompt will briefly appear confirming a silent launcher (`DesktopTracker.vbs`) has been added to your Windows Startup folder. The tracker will now start invisibly on every login with no terminal window.
 
 To remove auto-start: press `Win + R`, type `shell:startup`, and delete `DesktopTracker.vbs`.
 
@@ -117,9 +117,9 @@ To remove auto-start: press `Win + R`, type `shell:startup`, and delete `Desktop
 | `tracker.py` | Main script. Spawns a tracking thread (pyvda + ctypes for idle/lock detection) and an HTTP server thread, then runs the System Tray icon on the main thread. |
 | `index.html` | Static frontend served locally. Fetches `desktop_data.json`, formats times, renders progress bars, and handles CSV export — all client-side. |
 | `desktop_data.json` | Date-keyed JSON storing raw tracked seconds per desktop. Written to disk every 5 seconds to minimize I/O. Created automatically on first run. |
-| `install_autostart.bat` | Writes a `.vbs` file to `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup` that launches `tracker.py` via `pythonw.exe` (windowless). |
-| `icon.ico` / `icon.png` | Application icon used by the tray and browser tab. |
-| `.github/workflows/build.yml` | GitHub Actions workflow that builds `DesktopTracker.exe` with PyInstaller on every push to `main` and uploads it as a downloadable artifact. |
+| `install_autostart.bat` | Writes a `.vbs` file to `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup` that silently launches `DesktopTracker.exe` on login. |
+| `icon.png` / `icon.ico` | Application icons. `icon.png` is loaded first for the system tray (RGBA transparency); `icon.ico` is the fallback. `icon.png` is also used as the browser tab favicon. |
+| `.github/workflows/build.yml` | GitHub Actions workflow that builds `DesktopTracker.exe` with PyInstaller on every push to `main`, then publishes a GitHub Release with the files attached. |
 
 **Key implementation details:**
 

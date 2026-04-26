@@ -3,7 +3,6 @@ import json
 import os
 import sys
 import ctypes
-import tempfile
 import threading
 import webbrowser
 import http.server
@@ -24,6 +23,7 @@ os.chdir(application_path)
 
 # Configuration
 DATA_FILE = os.path.join(application_path, "desktop_data.json")
+PNG_FILENAME = os.path.join(application_path, "icon.png")
 ICO_FILENAME = os.path.join(application_path, "icon.ico")
 PORT = 8000
 IDLE_THRESHOLD_SECONDS = 300
@@ -129,13 +129,17 @@ def server_loop():
 
 # --- System Tray Functions ---
 def load_icon_image():
-    if os.path.exists(ICO_FILENAME):
-        try:
-            return Image.open(ICO_FILENAME)
-        except Exception:
-            pass  # Fall through to fallback
+    # PNG is tried first — pystray handles PNG alpha channels more reliably than
+    # ICO on Windows. Both are converted to RGBA so the tray renders transparency
+    # correctly; without RGBA mode, pystray renders a solid background.
+    for filename in [PNG_FILENAME, ICO_FILENAME]:
+        if os.path.exists(filename):
+            try:
+                return Image.open(filename).convert('RGBA')
+            except Exception:
+                pass
 
-    fallback_image = Image.new('RGB', (64, 64), color=(255, 0, 0))
+    fallback_image = Image.new('RGBA', (64, 64), color=(255, 0, 0, 255))
     ImageDraw.Draw(fallback_image).rectangle([16, 16, 48, 48], fill="white")
     return fallback_image
 
