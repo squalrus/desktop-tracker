@@ -48,8 +48,9 @@ Double-click `DesktopTracker.exe`. A tray icon will appear near your clock.
 
 ### 4. Auto-Start (Optional)
 
-> **Note:** `install_autostart.bat` is written for the Python version (`tracker.py`). If you are using the `.exe`, add `DesktopTracker.exe` to your Windows Startup folder manually:
-> Press `Win + R`, type `shell:startup`, and place a shortcut to `DesktopTracker.exe` there.
+Double-click `install_autostart.bat`. It will add a silent launcher to your Windows Startup folder so `DesktopTracker.exe` starts automatically on every login with no terminal window.
+
+To remove auto-start: press `Win + R`, type `shell:startup`, and delete `DesktopTracker.vbs`.
 
 ---
 
