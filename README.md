@@ -19,8 +19,8 @@ This is perfect for freelancers, remote workers, or anyone looking to separate t
 
 ## ⚡ Quick Start (No technical experience needed)
 
-1. Go to the [Releases page](../../releases) and download the latest `DesktopTracker-Windows` ZIP.
-2. Unzip it and move the folder to `C:\Program Files\DesktopTracker`.
+1. Go to the [Releases page](../../releases) and download the latest `DesktopTracker-Windows.zip`.
+2. Unzip it and move the folder to a user-writable location such as `C:\Users\YourName\DesktopTracker`. **Avoid `C:\Program Files`** — Windows restricts file writes there, and the tracker needs to create `desktop_data.json` alongside the `.exe`.
 3. Double-click `DesktopTracker.exe` to start the tracker. A small icon will appear near your clock. If Windows shows a security warning, click **More info → Run anyway**.
 4. Double-click `install_autostart.bat` so the tracker starts automatically every time you log in.
 
