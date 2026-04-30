@@ -110,6 +110,11 @@
         float: right;
         margin-top: 5px;
       }
+      .section-divider {
+        border: none;
+        border-top: 2px solid var(--border-color);
+        margin: 30px 0;
+      }
     </style>
   </head>
   <body>
@@ -122,6 +127,13 @@
     </div>
     <div id="total-display" class="total-time">Calculating total time...</div>
     <div id="summary" class="grid">Loading...</div>
+
+    <div class="section-divider"></div>
+    <div class="header-container">
+      <h2 id="week-label" style="margin:0;"></h2>
+      <div id="weekly-total" class="total-time" style="margin:0;"></div>
+    </div>
+    <div id="weekly-summary" class="grid"></div>
 
     <script>
       let globalData = {};
@@ -167,6 +179,7 @@
           p.textContent = `No data recorded for ${selectedDate}.`;
           summaryDiv.appendChild(p);
           totalDiv.innerText = 'Total Time Tracked: 0s';
+          renderWeekly(selectedDate);
           return;
         }
 
@@ -176,7 +189,7 @@
         // Build all cards in a fragment to avoid repeated DOM re-parses.
         const fragment = document.createDocumentFragment();
 
-        for (const [desktop, seconds] of Object.entries(dayData)) {
+        for (const [desktop, seconds] of Object.entries(dayData).sort(([a], [b]) => a.localeCompare(b))) {
           const percentage = totalSecondsOverall > 0
             ? ((seconds / totalSecondsOverall) * 100).toFixed(1)
             : '0.0';
@@ -223,6 +236,91 @@
         }
 
         summaryDiv.appendChild(fragment);
+        renderWeekly(selectedDate);
+      }
+
+      function getWeekDays(dateStr) {
+        const date = new Date(dateStr + 'T00:00:00');
+        const monday = new Date(date);
+        monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+        return Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        });
+      }
+
+      function renderWeekly(selectedDate) {
+        const days = getWeekDays(selectedDate);
+        const weekData = {};
+        for (const day of days) {
+          for (const [desktop, seconds] of Object.entries(globalData[day] || {})) {
+            weekData[desktop] = (weekData[desktop] || 0) + seconds;
+          }
+        }
+
+        const monday = days[0];
+        const sunday = days[6];
+        document.getElementById('week-label').textContent =
+          `Week of ${monday} – ${sunday}`;
+
+        const weeklyDiv = document.getElementById('weekly-summary');
+        const weeklyTotalDiv = document.getElementById('weekly-total');
+        weeklyDiv.innerHTML = '';
+
+        const totalSeconds = Object.values(weekData).reduce((a, b) => a + b, 0);
+        if (totalSeconds === 0) {
+          weeklyDiv.innerHTML = '<p>No data for this week.</p>';
+          weeklyTotalDiv.textContent = 'Total This Week: 0s';
+          return;
+        }
+
+        weeklyTotalDiv.textContent = `Total This Week: ${formatTime(totalSeconds)}`;
+
+        const fragment = document.createDocumentFragment();
+        for (const [desktop, seconds] of Object.entries(weekData).sort(([a], [b]) => a.localeCompare(b))) {
+          const percentage = ((seconds / totalSeconds) * 100).toFixed(1);
+
+          const card = document.createElement('div');
+          card.className = 'card';
+
+          const cardHeader = document.createElement('div');
+          cardHeader.className = 'card-header';
+
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'desktop-name';
+          nameSpan.textContent = desktop;
+
+          const timeSpan = document.createElement('span');
+          timeSpan.className = 'time';
+          timeSpan.textContent = formatTime(seconds);
+
+          cardHeader.appendChild(nameSpan);
+          cardHeader.appendChild(timeSpan);
+
+          const progressContainer = document.createElement('div');
+          progressContainer.className = 'progress-container';
+
+          const progressBar = document.createElement('div');
+          progressBar.className = 'progress-bar';
+          progressBar.style.width = percentage + '%';
+          progressContainer.appendChild(progressBar);
+
+          const percentageSpan = document.createElement('span');
+          percentageSpan.className = 'percentage';
+          percentageSpan.textContent = percentage + '%';
+
+          const clearDiv = document.createElement('div');
+          clearDiv.style.clear = 'both';
+
+          card.appendChild(cardHeader);
+          card.appendChild(progressContainer);
+          card.appendChild(percentageSpan);
+          card.appendChild(clearDiv);
+
+          fragment.appendChild(card);
+        }
+        weeklyDiv.appendChild(fragment);
       }
 
       // Wrap a CSV field value in double quotes if it contains commas, quotes, or newlines.
