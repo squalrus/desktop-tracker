@@ -11,8 +11,9 @@ This is perfect for freelancers, remote workers, or anyone looking to separate t
 - **System Tray Integration:** Runs silently in the background. Access the dashboard or quit the app directly from your Windows taskbar.
 - **Smart Idle Detection:** Automatically stops tracking if you haven't touched your mouse or keyboard in 5 minutes, or if your Windows machine is locked, ensuring highly accurate data.
 - **Historical Data & CSV Export:** Use the built-in calendar to view previous days' usage. Export your entire history to a `.csv` file with a single click for invoicing or personal analytics.
+- **Weekly Breakdown:** Below each day's view, see the full Monday–Sunday week totals — hours per desktop and each desktop's share of the week — so you can spot patterns at a glance.
 - **Privacy First:** All data is stored locally in a simple `desktop_data.json` file. No cloud syncing, no accounts.
-- **Real-time Dashboard:** A local web interface that updates automatically every 10 seconds, featuring visual percentage bars and precise time readouts (e.g., `2h 15m 30s`).
+- **Real-time Dashboard:** A local web interface that updates automatically every 10 seconds, featuring alphabetically ordered desktop cards with visual percentage bars and precise time readouts (e.g., `2h 15m 30s`).
 - **Automatic Dark Mode:** The dashboard instantly matches your system or browser's Light/Dark mode preference.
 
 ---
@@ -115,7 +116,7 @@ To remove auto-start: press `Win + R`, type `shell:startup`, and delete `Desktop
 | File | Purpose |
 | --- | --- |
 | `tracker.py` | Main script. Spawns a tracking thread (pyvda + ctypes for idle/lock detection) and an HTTP server thread, then runs the System Tray icon on the main thread. |
-| `index.html` | Static frontend served locally. Fetches `desktop_data.json`, formats times, renders progress bars, and handles CSV export — all client-side. |
+| `index.html` | Static frontend served locally. Fetches `desktop_data.json`, renders alphabetically ordered desktop cards with progress bars for the selected day and a weekly Monday–Sunday breakdown, and handles CSV export — all client-side. |
 | `desktop_data.json` | Date-keyed JSON storing raw tracked seconds per desktop. Written to disk every 5 seconds to minimize I/O. Created automatically on first run. |
 | `install_autostart.bat` | Writes a `.vbs` file to `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup` that silently launches `DesktopTracker.exe` on login. |
 | `icon.png` / `icon.ico` | Application icons. `icon.png` is loaded first for the system tray (RGBA transparency); `icon.ico` is the fallback. `icon.png` is also used as the browser tab favicon. |
