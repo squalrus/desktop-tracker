@@ -1,5 +1,7 @@
 # Windows Virtual Desktop Time Tracker
 
+![Desktop Tracker icon](icon.svg)
+
 A lightweight, background productivity tool that monitors how much time you spend on each Windows Virtual Desktop. It quietly logs your usage from the Windows System Tray and visualizes your daily statistics on a clean, responsive, locally-hosted web dashboard.
 
 This is perfect for freelancers, remote workers, or anyone looking to separate their "Work" desktop context from their "Personal" desktop context natively within Windows.
