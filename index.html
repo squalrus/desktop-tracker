@@ -43,7 +43,24 @@
         align-items: center;
         margin-bottom: 36px;
       }
+      .title-group { display: flex; align-items: center; gap: 10px; }
+      .title-icon  { width: 28px; height: 28px; flex-shrink: 0; }
       h1 { margin: 0; font-size: 1.4em; }
+
+      /* Footer */
+      .page-footer {
+        margin-top: 48px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        align-items: center;
+        font-size: 0.74em;
+        color: var(--muted);
+      }
+      .page-footer a { color: var(--muted); text-decoration: none; }
+      .page-footer a:hover { color: var(--text); }
       .controls { display: flex; gap: 8px; align-items: center; }
       .controls input, .controls button {
         padding: 7px 12px;
@@ -163,7 +180,15 @@
   <body>
 
     <div class="page-header">
-      <h1>Desktop Usage</h1>
+      <div class="title-group">
+        <svg class="title-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+          <rect x="10" y="10" width="60" height="60" rx="8" fill="#93c5fd" opacity="0.8" />
+          <rect x="30" y="30" width="60" height="60" rx="8" fill="#0078D7" />
+          <circle cx="60" cy="60" r="18" fill="#ffffff" />
+          <path d="M 60 48 L 60 60 L 68 64" fill="none" stroke="#0078D7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <h1>Desktop Usage</h1>
+      </div>
       <div class="controls">
         <input type="date" id="date-picker" />
         <button id="export-btn">Export CSV</button>
@@ -631,5 +656,13 @@
       fetchAndRenderData();
       setInterval(fetchAndRenderData, 10000);
     </script>
+
+    <footer class="page-footer">
+      <span>© 2026 <a href="https://github.com/squalrus" target="_blank" rel="noopener">squalrus</a></span>
+      <span>·</span>
+      <span>Released under the <a href="https://github.com/squalrus/desktop-tracker/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a></span>
+      <span>·</span>
+      <a href="https://github.com/squalrus/desktop-tracker" target="_blank" rel="noopener">View on GitHub</a>
+    </footer>
   </body>
 </html>
