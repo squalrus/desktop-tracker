@@ -4,357 +4,630 @@
     <meta charset="UTF-8" />
     <title>Virtual Desktop Time</title>
     <link rel="icon" type="image/png" href="icon.png" />
-
     <style>
       :root {
-        --bg-color: #f3f4f6;
-        --text-color: #333333;
-        --text-muted: #555555;
+        --bg: #f3f4f6;
+        --text: #1f2937;
+        --muted: #6b7280;
         --card-bg: #ffffff;
-        --card-shadow: rgba(0, 0, 0, 0.05);
-        --border-color: #dddddd;
-        --accent-color: #0078d7;
+        --shadow: rgba(0,0,0,0.06);
+        --border: #e5e7eb;
         --bar-bg: #e5e7eb;
       }
       @media (prefers-color-scheme: dark) {
         :root {
-          --bg-color: #121212;
-          --text-color: #e5e7eb;
-          --text-muted: #9ca3af;
-          --card-bg: #1e1e1e;
-          --card-shadow: rgba(0, 0, 0, 0.3);
-          --border-color: #333333;
-          --accent-color: #60a5fa;
+          --bg: #111827;
+          --text: #f3f4f6;
+          --muted: #9ca3af;
+          --card-bg: #1f2937;
+          --shadow: rgba(0,0,0,0.3);
+          --border: #374151;
           --bar-bg: #374151;
         }
       }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
       body {
-        font-family: 'Segoe UI', Tahoma, Geneva, sans-serif;
-        background-color: var(--bg-color);
-        color: var(--text-color);
-        margin: 40px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 32px;
       }
-      .header-container {
+
+      /* Page header */
+      .page-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 2px solid var(--border-color);
-        padding-bottom: 10px;
-        margin-bottom: 15px;
+        margin-bottom: 36px;
       }
-      h1 {
-        margin: 0;
-      }
-      .controls input,
-      .controls button {
-        padding: 8px 12px;
-        border-radius: 5px;
-        border: 1px solid var(--border-color);
+      h1 { margin: 0; font-size: 1.4em; }
+      .controls { display: flex; gap: 8px; align-items: center; }
+      .controls input, .controls button {
+        padding: 7px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
         background: var(--card-bg);
-        color: var(--text-color);
+        color: var(--text);
+        font-size: 0.88em;
         cursor: pointer;
-        font-size: 1em;
-        margin-left: 10px;
       }
-      .controls button:hover {
-        background: var(--accent-color);
-        color: white;
-        border-color: var(--accent-color);
-      }
-      .total-time {
-        font-size: 1.2em;
-        color: var(--text-muted);
-        margin-bottom: 30px;
-      }
-      .grid {
-        display: grid;
-        gap: 15px;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      }
-      .card {
-        background: var(--card-bg);
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px var(--card-shadow);
-      }
-      .card-header {
+      .controls button:hover { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
+      /* Sections */
+      .view-section { margin-bottom: 44px; }
+      .section-header {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 15px;
+        align-items: baseline;
+        border-bottom: 2px solid var(--border);
+        padding-bottom: 8px;
+        margin-bottom: 16px;
       }
-      .desktop-name {
-        font-weight: bold;
-        font-size: 1.2em;
-        color: var(--accent-color);
+      .section-label {
+        font-size: 0.7em;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted);
       }
-      .time {
-        font-size: 1.1em;
-        color: var(--text-muted);
+      .section-sublabel {
+        font-size: 0.82em;
+        color: var(--muted);
+        margin-left: 10px;
+        font-weight: normal;
       }
-      .progress-container {
-        width: 100%;
-        background-color: var(--bar-bg);
-        border-radius: 4px;
-        height: 12px;
+      .section-total { font-size: 0.9em; color: var(--muted); }
+
+      /* Day layout — cards left, donut right */
+      .day-body { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+      .day-cards {
+        flex: 1;
+        min-width: 180px;
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+        align-content: start;
+      }
+
+      /* Week / Month cards */
+      .period-cards {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+        margin-bottom: 16px;
+      }
+
+      /* Cards */
+      .card {
+        background: var(--card-bg);
+        border-radius: 10px;
+        padding: 14px 16px;
+        box-shadow: 0 1px 3px var(--shadow);
+        border-left: 4px solid var(--card-accent, #3b82f6);
+      }
+      .card-name {
+        font-size: 0.78em;
+        font-weight: 700;
+        color: var(--card-accent, #3b82f6);
+        margin-bottom: 3px;
+        white-space: nowrap;
         overflow: hidden;
-        margin-top: 5px;
+        text-overflow: ellipsis;
       }
-      .progress-bar {
+      .card-time {
+        font-size: 1.5em;
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1.1;
+        margin-bottom: 6px;
+      }
+      .card-meta { font-size: 0.74em; color: var(--muted); margin-bottom: 9px; }
+      .bar-track {
+        background: var(--bar-bg);
+        border-radius: 3px;
+        height: 5px;
+        overflow: hidden;
+        margin-bottom: 5px;
+      }
+      .bar-fill {
         height: 100%;
-        background-color: var(--accent-color);
-        transition: width 0.5s;
+        background: var(--card-accent, #3b82f6);
+        border-radius: 3px;
+        transition: width 0.4s;
       }
-      .percentage {
-        font-size: 0.85em;
-        color: var(--text-muted);
-        float: right;
-        margin-top: 5px;
+      .card-pct { font-size: 0.72em; color: var(--muted); text-align: right; }
+
+      /* Charts */
+      .chart-wrap { margin-top: 4px; }
+      .chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        margin-bottom: 8px;
+        font-size: 0.76em;
+        color: var(--muted);
       }
-      .section-divider {
-        border: none;
-        border-top: 2px solid var(--border-color);
-        margin: 30px 0;
+      .legend-dot {
+        display: inline-block;
+        width: 8px; height: 8px;
+        border-radius: 2px;
+        margin-right: 4px;
+        vertical-align: middle;
       }
+      .no-data { color: var(--muted); font-size: 0.88em; padding: 4px 0; }
     </style>
   </head>
   <body>
-    <div class="header-container">
+
+    <div class="page-header">
       <h1>Desktop Usage</h1>
       <div class="controls">
         <input type="date" id="date-picker" />
         <button id="export-btn">Export CSV</button>
       </div>
     </div>
-    <div id="total-display" class="total-time">Calculating total time...</div>
-    <div id="summary" class="grid">Loading...</div>
 
-    <div class="section-divider"></div>
-    <div class="header-container">
-      <h2 id="week-label" style="margin:0;"></h2>
-      <div id="weekly-total" class="total-time" style="margin:0;"></div>
+    <!-- Day -->
+    <div class="view-section">
+      <div class="section-header">
+        <div>
+          <span class="section-label">Day</span>
+          <span id="day-sublabel" class="section-sublabel"></span>
+        </div>
+        <span id="day-total" class="section-total"></span>
+      </div>
+      <div class="day-body">
+        <div class="day-cards" id="day-cards"></div>
+        <div id="day-donut"></div>
+      </div>
     </div>
-    <div id="weekly-summary" class="grid"></div>
+
+    <!-- Week -->
+    <div class="view-section">
+      <div class="section-header">
+        <div>
+          <span class="section-label">Week</span>
+          <span id="week-sublabel" class="section-sublabel"></span>
+        </div>
+        <span id="week-total" class="section-total"></span>
+      </div>
+      <div class="period-cards" id="week-cards"></div>
+      <div class="chart-wrap" id="week-chart"></div>
+    </div>
+
+    <!-- Month -->
+    <div class="view-section">
+      <div class="section-header">
+        <div>
+          <span class="section-label">Month</span>
+          <span id="month-sublabel" class="section-sublabel"></span>
+        </div>
+        <span id="month-total" class="section-total"></span>
+      </div>
+      <div class="period-cards" id="month-cards"></div>
+      <div class="chart-wrap" id="month-chart"></div>
+    </div>
 
     <script>
-      let globalData = {};
+      const PALETTE = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316','#84cc16'];
 
-      function formatTime(totalSeconds) {
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
-        let timeText = '';
-        if (hours > 0) timeText += `${hours}h `;
-        if (minutes > 0 || hours > 0) timeText += `${minutes}m `;
-        timeText += `${seconds}s`;
-        return timeText.trim();
+      let globalData = {};
+      let colorMap   = {};
+
+      // Assign a consistent color per desktop name across all sections
+      function buildColorMap() {
+        const names = new Set();
+        for (const d of Object.values(globalData))
+          for (const k of Object.keys(d)) names.add(k);
+        colorMap = {};
+        [...names].sort().forEach((n, i) => colorMap[n] = PALETTE[i % PALETTE.length]);
+      }
+
+      function formatTime(s) {
+        s = Math.round(s);
+        const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+        let t = '';
+        if (h > 0) t += h + 'h ';
+        if (m > 0 || h > 0) t += m + 'm ';
+        t += sec + 's';
+        return t.trim();
+      }
+
+      function fmtDate(dateStr) {
+        return new Date(dateStr + 'T00:00:00')
+          .toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      }
+
+      // ── Card ──────────────────────────────────────────────────────────
+      function makeCard(desktop, seconds, totalSeconds, metaText) {
+        const pct   = totalSeconds > 0 ? ((seconds / totalSeconds) * 100).toFixed(1) : '0.0';
+        const color = colorMap[desktop] || PALETTE[0];
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.style.setProperty('--card-accent', color);
+
+        const name = document.createElement('div');
+        name.className = 'card-name';
+        name.textContent = desktop;
+
+        const time = document.createElement('div');
+        time.className = 'card-time';
+        time.textContent = formatTime(seconds);
+
+        const track = document.createElement('div');
+        track.className = 'bar-track';
+        const fill = document.createElement('div');
+        fill.className = 'bar-fill';
+        fill.style.width = pct + '%';
+        track.appendChild(fill);
+
+        const p = document.createElement('div');
+        p.className = 'card-pct';
+        p.textContent = pct + '%';
+
+        card.appendChild(name);
+        card.appendChild(time);
+        if (metaText) {
+          const meta = document.createElement('div');
+          meta.className = 'card-meta';
+          meta.textContent = metaText;
+          card.appendChild(meta);
+        }
+        card.appendChild(track);
+        card.appendChild(p);
+        return card;
+      }
+
+      // ── SVG helper ────────────────────────────────────────────────────
+      function svgEl(tag, attrs) {
+        const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+        for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+        return el;
+      }
+
+      // ── Donut chart ───────────────────────────────────────────────────
+      // Each ring segment uses stroke-dasharray + stroke-dashoffset.
+      // dashoffset = circ/4 − cumulative so segments start at 12 o'clock.
+      function renderDonut(container, data) {
+        container.innerHTML = '';
+        const entries = Object.entries(data).sort(([a],[b]) => a.localeCompare(b));
+        const total   = entries.reduce((s,[,v]) => s + v, 0);
+        if (total === 0) return;
+
+        const size = 160, cx = 80, cy = 80, r = 54, sw = 20;
+        const circ  = 2 * Math.PI * r;
+
+        const svg = svgEl('svg', { viewBox: `0 0 ${size} ${size}` });
+        svg.style.cssText = 'width:160px;height:160px;flex-shrink:0';
+
+        svg.appendChild(svgEl('circle', {
+          cx, cy, r, fill: 'none', stroke: 'var(--bar-bg)', 'stroke-width': sw
+        }));
+
+        let cum = 0;
+        for (const [desktop, seconds] of entries) {
+          const dash = (seconds / total) * circ;
+          const seg  = svgEl('circle', {
+            cx, cy, r, fill: 'none',
+            stroke: colorMap[desktop] || PALETTE[0],
+            'stroke-width': sw,
+            'stroke-dasharray': `${dash} ${circ - dash}`,
+            'stroke-dashoffset': circ * 0.25 - cum,
+          });
+          const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+          title.textContent = `${desktop}: ${formatTime(seconds)} (${((seconds/total)*100).toFixed(1)}%)`;
+          seg.appendChild(title);
+          svg.appendChild(seg);
+          cum += dash;
+        }
+
+        const tBig = svgEl('text', {
+          x: cx, y: cy - 6, 'text-anchor': 'middle',
+          fill: 'var(--text)', 'font-size': '13', 'font-weight': 'bold',
+          'font-family': 'Segoe UI,sans-serif'
+        });
+        tBig.textContent = formatTime(total);
+        svg.appendChild(tBig);
+
+        const tSub = svgEl('text', {
+          x: cx, y: cy + 11, 'text-anchor': 'middle',
+          fill: 'var(--muted)', 'font-size': '9', 'font-family': 'Segoe UI,sans-serif'
+        });
+        tSub.textContent = 'today';
+        svg.appendChild(tSub);
+
+        container.appendChild(svg);
+      }
+
+      // ── Stacked bar chart ─────────────────────────────────────────────
+      // days = [{ label, totals: {desktop: seconds}, isSelected? }]
+      function renderBarChart(container, days, compact) {
+        container.innerHTML = '';
+        const allDesktops = [...new Set(days.flatMap(d => Object.keys(d.totals)))].sort();
+        if (allDesktops.length === 0) return;
+
+        const legend = document.createElement('div');
+        legend.className = 'chart-legend';
+        for (const name of allDesktops) {
+          const dot = document.createElement('span');
+          dot.className = 'legend-dot';
+          dot.style.background = colorMap[name] || PALETTE[0];
+          const item = document.createElement('span');
+          item.appendChild(dot);
+          item.appendChild(document.createTextNode(name));
+          legend.appendChild(item);
+        }
+        container.appendChild(legend);
+
+        const W = 560, H = compact ? 150 : 175;
+        const ml = 6, mr = 6, mt = 8, mb = 28;
+        const plotW = W - ml - mr, plotH = H - mt - mb;
+        const n    = days.length;
+        const gap  = n > 20 ? 2 : n > 10 ? 3 : 5;
+        const barW = Math.max(4, (plotW - gap * (n - 1)) / n);
+        const maxTotal = Math.max(
+          ...days.map(d => Object.values(d.totals).reduce((s,v) => s+v, 0)), 1
+        );
+
+        const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}` });
+        svg.style.cssText = 'width:100%;max-width:560px;display:block';
+
+        // Baseline
+        svg.appendChild(svgEl('line', {
+          x1: ml, y1: mt + plotH, x2: W - mr, y2: mt + plotH,
+          stroke: 'var(--border)', 'stroke-width': 1
+        }));
+
+        for (let i = 0; i < n; i++) {
+          const { label, totals, isSelected } = days[i];
+          const x        = ml + i * (barW + gap);
+          const dayTotal = Object.values(totals).reduce((s,v) => s+v, 0);
+
+          if (dayTotal === 0) {
+            svg.appendChild(svgEl('rect', {
+              x, y: mt + plotH - 2, width: barW, height: 2,
+              fill: 'var(--bar-bg)', rx: 1
+            }));
+          } else {
+            let yOff = mt + plotH;
+            for (const desktop of Object.keys(totals).sort()) {
+              const bh   = (totals[desktop] / maxTotal) * plotH;
+              yOff -= bh;
+              const rect = svgEl('rect', {
+                x, y: yOff, width: barW, height: bh,
+                fill: colorMap[desktop] || PALETTE[0], rx: 2
+              });
+              const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+              title.textContent = `${label} · ${desktop}: ${formatTime(totals[desktop])}`;
+              rect.appendChild(title);
+              svg.appendChild(rect);
+            }
+          }
+
+          // Underline the selected day
+          if (isSelected) {
+            svg.appendChild(svgEl('rect', {
+              x, y: mt + plotH + 5, width: barW, height: 3, fill: '#3b82f6', rx: 1
+            }));
+          }
+
+          const fs = n > 20 ? '7' : '9';
+          const t  = svgEl('text', {
+            x: x + barW / 2, y: H - 5, 'text-anchor': 'middle',
+            'font-size': fs,
+            fill: isSelected ? 'var(--text)' : 'var(--muted)',
+            'font-weight': isSelected ? 'bold' : 'normal',
+            'font-family': 'Segoe UI,sans-serif'
+          });
+          t.textContent = label;
+          svg.appendChild(t);
+        }
+
+        container.appendChild(svg);
+      }
+
+      // ── Date helpers ──────────────────────────────────────────────────
+      function getWeekDays(dateStr) {
+        const d   = new Date(dateStr + 'T00:00:00');
+        const mon = new Date(d);
+        mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        return Array.from({ length: 7 }, (_, i) => {
+          const day = new Date(mon);
+          day.setDate(mon.getDate() + i);
+          return day.getFullYear() + '-' +
+            String(day.getMonth() + 1).padStart(2, '0') + '-' +
+            String(day.getDate()).padStart(2, '0');
+        });
+      }
+
+      function getMonthDays(dateStr) {
+        const [y, m] = dateStr.split('-').map(Number);
+        const count  = new Date(y, m, 0).getDate();
+        return Array.from({ length: count }, (_, i) =>
+          `${y}-${String(m).padStart(2,'0')}-${String(i + 1).padStart(2,'0')}`);
+      }
+
+      function trackedCount(days) {
+        return days.filter(d => {
+          const vals = Object.values(globalData[d] || {});
+          return vals.length > 0 && vals.reduce((s,x) => s+x, 0) > 0;
+        }).length;
+      }
+
+      // ── Render: Day ───────────────────────────────────────────────────
+      function renderDay(sel) {
+        const data  = globalData[sel] || {};
+        const total = Object.values(data).reduce((s,v) => s+v, 0);
+
+        document.getElementById('day-sublabel').textContent = fmtDate(sel);
+        document.getElementById('day-total').textContent =
+          total > 0 ? `Total: ${formatTime(total)}` : '';
+
+        const el = document.getElementById('day-cards');
+        el.innerHTML = '';
+
+        if (total === 0) {
+          const p = document.createElement('p');
+          p.className = 'no-data';
+          p.textContent = 'No data recorded for this day.';
+          el.appendChild(p);
+          document.getElementById('day-donut').innerHTML = '';
+          return;
+        }
+
+        const frag = document.createDocumentFragment();
+        for (const [desktop, secs] of Object.entries(data).sort(([a],[b]) => a.localeCompare(b)))
+          frag.appendChild(makeCard(desktop, secs, total, null));
+        el.appendChild(frag);
+        renderDonut(document.getElementById('day-donut'), data);
+      }
+
+      // ── Render: Week ──────────────────────────────────────────────────
+      function renderWeek(sel) {
+        const days    = getWeekDays(sel);
+        const aggData = {};
+        for (const d of days)
+          for (const [k, v] of Object.entries(globalData[d] || {}))
+            aggData[k] = (aggData[k] || 0) + v;
+
+        const total   = Object.values(aggData).reduce((s,v) => s+v, 0);
+        const tracked = trackedCount(days);
+
+        document.getElementById('week-sublabel').textContent =
+          `${fmtDate(days[0])} – ${fmtDate(days[6])}`;
+        document.getElementById('week-total').textContent =
+          total > 0 ? `Total: ${formatTime(total)}` : '';
+
+        const el = document.getElementById('week-cards');
+        el.innerHTML = '';
+
+        if (total === 0) {
+          const p = document.createElement('p');
+          p.className = 'no-data';
+          p.textContent = 'No data for this week.';
+          el.appendChild(p);
+          document.getElementById('week-chart').innerHTML = '';
+          return;
+        }
+
+        const frag = document.createDocumentFragment();
+        for (const [desktop, secs] of Object.entries(aggData).sort(([a],[b]) => a.localeCompare(b))) {
+          const meta = tracked > 1
+            ? `avg/day ${formatTime(Math.round(secs / tracked))} · ${tracked} days`
+            : null;
+          frag.appendChild(makeCard(desktop, secs, total, meta));
+        }
+        el.appendChild(frag);
+
+        const LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        renderBarChart(
+          document.getElementById('week-chart'),
+          days.map((d, i) => ({ label: LABELS[i], totals: globalData[d] || {}, isSelected: d === sel })),
+          false
+        );
+      }
+
+      // ── Render: Month ─────────────────────────────────────────────────
+      function renderMonth(sel) {
+        const [y, m] = sel.split('-').map(Number);
+        const days   = getMonthDays(sel);
+        const aggData = {};
+        for (const d of days)
+          for (const [k, v] of Object.entries(globalData[d] || {}))
+            aggData[k] = (aggData[k] || 0) + v;
+
+        const total     = Object.values(aggData).reduce((s,v) => s+v, 0);
+        const tracked   = trackedCount(days);
+        const monthName = new Date(y, m - 1, 1)
+          .toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+        document.getElementById('month-sublabel').textContent = monthName;
+        document.getElementById('month-total').textContent =
+          total > 0 ? `Total: ${formatTime(total)}` : '';
+
+        const el = document.getElementById('month-cards');
+        el.innerHTML = '';
+
+        if (total === 0) {
+          const p = document.createElement('p');
+          p.className = 'no-data';
+          p.textContent = 'No data for this month.';
+          el.appendChild(p);
+          document.getElementById('month-chart').innerHTML = '';
+          return;
+        }
+
+        const frag = document.createDocumentFragment();
+        for (const [desktop, secs] of Object.entries(aggData).sort(([a],[b]) => a.localeCompare(b))) {
+          const meta = tracked > 1
+            ? `avg/day ${formatTime(Math.round(secs / tracked))} · ${tracked} days tracked`
+            : null;
+          frag.appendChild(makeCard(desktop, secs, total, meta));
+        }
+        el.appendChild(frag);
+
+        renderBarChart(
+          document.getElementById('month-chart'),
+          days.map(d => ({
+            label: String(parseInt(d.split('-')[2])),
+            totals: globalData[d] || {},
+            isSelected: d === sel
+          })),
+          true
+        );
+      }
+
+      // ── Master render ─────────────────────────────────────────────────
+      function renderAll() {
+        const picker = document.getElementById('date-picker');
+        if (!picker.value) {
+          const d = new Date();
+          picker.value = d.getFullYear() + '-' +
+            String(d.getMonth() + 1).padStart(2, '0') + '-' +
+            String(d.getDate()).padStart(2, '0');
+        }
+        buildColorMap();
+        renderDay(picker.value);
+        renderWeek(picker.value);
+        renderMonth(picker.value);
       }
 
       async function fetchAndRenderData() {
         try {
-          const response = await fetch('desktop_data.json?t=' + new Date().getTime());
-          globalData = await response.json();
-          renderData();
-        } catch (error) {
-          document.getElementById('summary').innerHTML = '<p style="color:#ef4444;">Error loading data.</p>';
-        }
-      }
-
-      function renderData() {
-        const datePicker = document.getElementById('date-picker');
-        let selectedDate = datePicker.value;
-
-        if (!selectedDate) {
-          const d = new Date();
-          selectedDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-          datePicker.value = selectedDate;
-        }
-
-        const dayData = globalData[selectedDate] || {};
-        const summaryDiv = document.getElementById('summary');
-        const totalDiv = document.getElementById('total-display');
-        summaryDiv.innerHTML = '';
-
-        if (Object.keys(dayData).length === 0) {
-          const p = document.createElement('p');
-          p.textContent = `No data recorded for ${selectedDate}.`;
-          summaryDiv.appendChild(p);
-          totalDiv.innerText = 'Total Time Tracked: 0s';
-          renderWeekly(selectedDate);
+          const r = await fetch('desktop_data.json?t=' + Date.now());
+          globalData = await r.json();
+        } catch {
+          document.getElementById('day-cards').innerHTML =
+            '<p style="color:#ef4444">Error loading data.</p>';
           return;
         }
-
-        const totalSecondsOverall = Object.values(dayData).reduce((a, b) => a + b, 0);
-        totalDiv.innerText = `Total Time Tracked: ${formatTime(totalSecondsOverall)}`;
-
-        // Build all cards in a fragment to avoid repeated DOM re-parses.
-        const fragment = document.createDocumentFragment();
-
-        for (const [desktop, seconds] of Object.entries(dayData).sort(([a], [b]) => a.localeCompare(b))) {
-          const percentage = totalSecondsOverall > 0
-            ? ((seconds / totalSecondsOverall) * 100).toFixed(1)
-            : '0.0';
-
-          const card = document.createElement('div');
-          card.className = 'card';
-
-          const cardHeader = document.createElement('div');
-          cardHeader.className = 'card-header';
-
-          // Use textContent to prevent XSS from desktop names containing HTML.
-          const nameSpan = document.createElement('span');
-          nameSpan.className = 'desktop-name';
-          nameSpan.textContent = desktop;
-
-          const timeSpan = document.createElement('span');
-          timeSpan.className = 'time';
-          timeSpan.textContent = formatTime(seconds);
-
-          cardHeader.appendChild(nameSpan);
-          cardHeader.appendChild(timeSpan);
-
-          const progressContainer = document.createElement('div');
-          progressContainer.className = 'progress-container';
-
-          const progressBar = document.createElement('div');
-          progressBar.className = 'progress-bar';
-          progressBar.style.width = percentage + '%';
-          progressContainer.appendChild(progressBar);
-
-          const percentageSpan = document.createElement('span');
-          percentageSpan.className = 'percentage';
-          percentageSpan.textContent = percentage + '%';
-
-          const clearDiv = document.createElement('div');
-          clearDiv.style.clear = 'both';
-
-          card.appendChild(cardHeader);
-          card.appendChild(progressContainer);
-          card.appendChild(percentageSpan);
-          card.appendChild(clearDiv);
-
-          fragment.appendChild(card);
-        }
-
-        summaryDiv.appendChild(fragment);
-        renderWeekly(selectedDate);
+        renderAll();
       }
 
-      function getWeekDays(dateStr) {
-        const date = new Date(dateStr + 'T00:00:00');
-        const monday = new Date(date);
-        monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
-        return Array.from({ length: 7 }, (_, i) => {
-          const d = new Date(monday);
-          d.setDate(monday.getDate() + i);
-          return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-        });
-      }
-
-      function renderWeekly(selectedDate) {
-        const days = getWeekDays(selectedDate);
-        const weekData = {};
-        for (const day of days) {
-          for (const [desktop, seconds] of Object.entries(globalData[day] || {})) {
-            weekData[desktop] = (weekData[desktop] || 0) + seconds;
-          }
-        }
-
-        const monday = days[0];
-        const sunday = days[6];
-        document.getElementById('week-label').textContent =
-          `Week of ${monday} – ${sunday}`;
-
-        const weeklyDiv = document.getElementById('weekly-summary');
-        const weeklyTotalDiv = document.getElementById('weekly-total');
-        weeklyDiv.innerHTML = '';
-
-        const totalSeconds = Object.values(weekData).reduce((a, b) => a + b, 0);
-        if (totalSeconds === 0) {
-          weeklyDiv.innerHTML = '<p>No data for this week.</p>';
-          weeklyTotalDiv.textContent = 'Total This Week: 0s';
-          return;
-        }
-
-        weeklyTotalDiv.textContent = `Total This Week: ${formatTime(totalSeconds)}`;
-
-        const fragment = document.createDocumentFragment();
-        for (const [desktop, seconds] of Object.entries(weekData).sort(([a], [b]) => a.localeCompare(b))) {
-          const percentage = ((seconds / totalSeconds) * 100).toFixed(1);
-
-          const card = document.createElement('div');
-          card.className = 'card';
-
-          const cardHeader = document.createElement('div');
-          cardHeader.className = 'card-header';
-
-          const nameSpan = document.createElement('span');
-          nameSpan.className = 'desktop-name';
-          nameSpan.textContent = desktop;
-
-          const timeSpan = document.createElement('span');
-          timeSpan.className = 'time';
-          timeSpan.textContent = formatTime(seconds);
-
-          cardHeader.appendChild(nameSpan);
-          cardHeader.appendChild(timeSpan);
-
-          const progressContainer = document.createElement('div');
-          progressContainer.className = 'progress-container';
-
-          const progressBar = document.createElement('div');
-          progressBar.className = 'progress-bar';
-          progressBar.style.width = percentage + '%';
-          progressContainer.appendChild(progressBar);
-
-          const percentageSpan = document.createElement('span');
-          percentageSpan.className = 'percentage';
-          percentageSpan.textContent = percentage + '%';
-
-          const clearDiv = document.createElement('div');
-          clearDiv.style.clear = 'both';
-
-          card.appendChild(cardHeader);
-          card.appendChild(progressContainer);
-          card.appendChild(percentageSpan);
-          card.appendChild(clearDiv);
-
-          fragment.appendChild(card);
-        }
-        weeklyDiv.appendChild(fragment);
-      }
-
-      // Wrap a CSV field value in double quotes if it contains commas, quotes, or newlines.
-      function csvEscape(value) {
-        const str = String(value);
-        if (/[,"\n\r]/.test(str)) {
-          return '"' + str.replace(/"/g, '""') + '"';
-        }
-        return str;
+      // ── CSV export ────────────────────────────────────────────────────
+      function csvEscape(v) {
+        const s = String(v);
+        return /[,"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
       }
 
       document.getElementById('export-btn').addEventListener('click', () => {
         const rows = ['Date,Desktop,Total Seconds,Formatted Time'];
-        for (const [dateKey, desktops] of Object.entries(globalData)) {
-          for (const [desktop, seconds] of Object.entries(desktops)) {
-            rows.push(`${csvEscape(dateKey)},${csvEscape(desktop)},${seconds},${csvEscape(formatTime(seconds))}`);
-          }
-        }
-
-        // Use a Blob + object URL instead of a data: URI so special characters
-        // in field values are not corrupted by encodeURI.
+        for (const [date, desktops] of Object.entries(globalData))
+          for (const [desktop, secs] of Object.entries(desktops))
+            rows.push(`${csvEscape(date)},${csvEscape(desktop)},${secs},${csvEscape(formatTime(secs))}`);
         const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', 'desktop_time_export.csv');
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = 'desktop_time_export.csv';
+        document.body.appendChild(a); a.click(); a.remove();
         URL.revokeObjectURL(url);
       });
 
-      document.getElementById('date-picker').addEventListener('change', renderData);
-
+      document.getElementById('date-picker').addEventListener('change', renderAll);
       fetchAndRenderData();
       setInterval(fetchAndRenderData, 10000);
     </script>
