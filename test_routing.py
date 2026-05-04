@@ -57,9 +57,9 @@ passed &= check("GET  /api/bamboohr/config   → 200", status, 200)
 status, _ = post("/api/bamboohr/config")
 passed &= check("POST /api/bamboohr/config   → 200", status, 200)
 
-# Projects and sync: still stubs, so 501
+# Projects: implemented in Step 3 — returns 400 (no creds) not 501
 status, _ = get("/api/bamboohr/projects")
-passed &= check("GET  /api/bamboohr/projects → 501", status, 501)
+passed &= check("GET  /api/bamboohr/projects → 400", status, 400)
 
 status, _ = post("/api/bamboohr/sync")
 passed &= check("POST /api/bamboohr/sync     → 501", status, 501)
@@ -95,7 +95,31 @@ passed &= check("GET after POST: key still masked",   body.get("api_key"), "****
 status, body = post("/api/bamboohr/config", {"api_key": "****"})
 passed &= check("POST with **** preserves real key",  body.get("api_key"), "****")
 
-# Clean up test data
+# Clean up Step 2 test data
+post("/api/bamboohr/config", {"company_domain": "", "api_key": "x"})
+post("/api/bamboohr/config", {"company_domain": "", "api_key": ""})
+
+print("\n── Step 3: projects proxy ───────────────────────────────────────────")
+
+# With no credentials configured, expect 400
+post("/api/bamboohr/config", {"company_domain": "", "api_key": ""})
+status, body = get("/api/bamboohr/projects")
+passed &= check("GET /api/bamboohr/projects (no creds) → 400", status, 400)
+passed &= check("error message present",                        "error" in body, True)
+
+# With only domain set (no api_key), still 400
+post("/api/bamboohr/config", {"company_domain": "testcorp", "api_key": ""})
+status, body = get("/api/bamboohr/projects")
+passed &= check("GET /api/bamboohr/projects (no key)   → 400", status, 400)
+
+# With credentials set, expect a real BambooHR response (401 for bad creds,
+# 200 for valid ones). Either way the routing layer is working correctly.
+post("/api/bamboohr/config", {"company_domain": "testcorp", "api_key": "badkey"})
+status, body = get("/api/bamboohr/projects")
+passed &= check("GET /api/bamboohr/projects (bad creds) → 4xx from BambooHR",
+                400 < status < 500, True)
+
+# Clean up
 post("/api/bamboohr/config", {"company_domain": "", "api_key": "x"})
 post("/api/bamboohr/config", {"company_domain": "", "api_key": ""})
 

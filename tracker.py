@@ -7,6 +7,9 @@ import threading
 import webbrowser
 import http.server
 import socketserver
+import urllib.request
+import urllib.error
+import base64
 from datetime import date
 from pyvda import VirtualDesktop
 import pystray
@@ -96,6 +99,36 @@ def save_bamboohr_config(config):
             json.dump(config, f, indent=4)
     except OSError:
         pass
+
+# --- BambooHR API Helper ---
+def bamboohr_request(domain, api_key, method, path, body=None):
+    """Authenticated request to the BambooHR REST API.
+    Returns (http_status, response_dict).
+    """
+    url   = f"https://api.bamboohr.com/api/gateway.php/{domain}/v1/{path}"
+    token = base64.b64encode(f"{api_key}:x".encode()).decode()
+    data  = json.dumps(body).encode() if body else None
+    req   = urllib.request.Request(
+        url, data=data, method=method,
+        headers={
+            "Authorization": f"Basic {token}",
+            "Accept":        "application/json",
+            "Content-Type":  "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            raw = r.read()
+            return r.status, json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as e:
+        detail = {}
+        try:
+            detail = json.loads(e.read())
+        except Exception:
+            pass
+        return e.code, {"error": f"BambooHR returned {e.code}", "detail": detail}
+    except urllib.error.URLError as e:
+        return 502, {"error": f"Could not reach BambooHR: {e.reason}"}
 
 # --- Data Management ---
 def load_data():
@@ -206,7 +239,16 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         self._send_json(200, safe)
 
     def _get_projects(self):
-        self._send_json(501, {'error': 'Not implemented'})
+        cfg     = load_bamboohr_config()
+        domain  = cfg.get("company_domain", "").strip()
+        api_key = cfg.get("api_key", "").strip()
+
+        if not domain or not api_key:
+            self._send_json(400, {"error": "BambooHR company domain and API key must be configured."})
+            return
+
+        status, data = bamboohr_request(domain, api_key, "GET", "timetracking/projects")
+        self._send_json(status, data)
 
     def _post_sync(self):
         self._send_json(501, {'error': 'Not implemented'})
