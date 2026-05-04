@@ -22,9 +22,10 @@ else:
 os.chdir(application_path)
 
 # Configuration
-DATA_FILE = os.path.join(application_path, "desktop_data.json")
-PNG_FILENAME = os.path.join(application_path, "icon.png")
-ICO_FILENAME = os.path.join(application_path, "icon.ico")
+DATA_FILE            = os.path.join(application_path, "desktop_data.json")
+BAMBOOHR_CONFIG_FILE = os.path.join(application_path, "bamboohr_config.json")
+PNG_FILENAME         = os.path.join(application_path, "icon.png")
+ICO_FILENAME         = os.path.join(application_path, "icon.ico")
 PORT = 8000
 IDLE_THRESHOLD_SECONDS = 300
 
@@ -88,12 +89,72 @@ def save_data(data):
     except OSError:
         pass
 
-# --- Background Threads ---
+# --- HTTP handler with API routing ---
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
+
     def log_message(self, format, *args):
-        # Suppress all HTTP logs — pythonw.exe crashes if it tries to print
+        # Suppress all HTTP logs — pythonw.exe crashes when it tries to print
         # to a missing console.
         pass
+
+    # Route GET requests: /api/* goes to the API layer; everything else is
+    # served as a static file by SimpleHTTPRequestHandler.
+    def do_GET(self):
+        if self.path.split('?')[0].startswith('/api/'):
+            self._dispatch('GET')
+        else:
+            super().do_GET()
+
+    # Route POST requests: only /api/* is expected; anything else gets 405.
+    def do_POST(self):
+        if self.path.split('?')[0].startswith('/api/'):
+            self._dispatch('POST')
+        else:
+            self._send_json(405, {'error': 'Method not allowed'})
+
+    def _dispatch(self, method):
+        path = self.path.split('?')[0]
+        routes = {
+            ('GET',  '/api/bamboohr/config'):   self._get_config,
+            ('POST', '/api/bamboohr/config'):   self._post_config,
+            ('GET',  '/api/bamboohr/projects'): self._get_projects,
+            ('POST', '/api/bamboohr/sync'):     self._post_sync,
+        }
+        handler = routes.get((method, path))
+        if handler:
+            handler()
+        else:
+            self._send_json(404, {'error': 'Not found'})
+
+    # ── Shared helpers ────────────────────────────────────────────────────
+
+    def _read_body(self):
+        length = int(self.headers.get('Content-Length', 0))
+        if length == 0:
+            return {}
+        return json.loads(self.rfile.read(length).decode())
+
+    def _send_json(self, status, data):
+        body = json.dumps(data).encode()
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    # ── API endpoint stubs (implemented in Steps 2–5) ─────────────────────
+
+    def _get_config(self):
+        self._send_json(501, {'error': 'Not implemented'})
+
+    def _post_config(self):
+        self._send_json(501, {'error': 'Not implemented'})
+
+    def _get_projects(self):
+        self._send_json(501, {'error': 'Not implemented'})
+
+    def _post_sync(self):
+        self._send_json(501, {'error': 'Not implemented'})
 
 def tracker_loop():
     loop_count = 0
