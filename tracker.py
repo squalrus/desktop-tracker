@@ -69,6 +69,34 @@ def is_computer_locked():
         return not result
     return True
 
+# --- BambooHR Config Management ---
+_BAMBOOHR_DEFAULTS = {
+    "company_domain": "",
+    "api_key":        "",
+    "employee_id":    "",
+    "mappings":       {},
+    "synced_dates":   {},
+    "auto_sync":      False,
+    "auto_sync_hour": 23,
+}
+
+def load_bamboohr_config():
+    if os.path.exists(BAMBOOHR_CONFIG_FILE):
+        try:
+            with open(BAMBOOHR_CONFIG_FILE, "r") as f:
+                data = json.load(f)
+            return {**_BAMBOOHR_DEFAULTS, **data}
+        except (json.JSONDecodeError, OSError):
+            pass
+    return dict(_BAMBOOHR_DEFAULTS)
+
+def save_bamboohr_config(config):
+    try:
+        with open(BAMBOOHR_CONFIG_FILE, "w") as f:
+            json.dump(config, f, indent=4)
+    except OSError:
+        pass
+
 # --- Data Management ---
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -145,10 +173,37 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
     # ── API endpoint stubs (implemented in Steps 2–5) ─────────────────────
 
     def _get_config(self):
-        self._send_json(501, {'error': 'Not implemented'})
+        cfg  = load_bamboohr_config()
+        safe = dict(cfg)
+        if safe.get("api_key"):
+            safe["api_key"] = "****"
+        self._send_json(200, safe)
 
     def _post_config(self):
-        self._send_json(501, {'error': 'Not implemented'})
+        try:
+            body = self._read_body()
+        except (json.JSONDecodeError, ValueError):
+            self._send_json(400, {"error": "Invalid JSON"})
+            return
+
+        existing = load_bamboohr_config()
+        updated  = dict(existing)
+
+        for field in ("company_domain", "employee_id", "mappings",
+                      "auto_sync", "auto_sync_hour"):
+            if field in body:
+                updated[field] = body[field]
+
+        # Only overwrite the stored key when a real (non-masked) value is sent.
+        if "api_key" in body and body["api_key"] != "****":
+            updated["api_key"] = body["api_key"]
+
+        save_bamboohr_config(updated)
+
+        safe = dict(updated)
+        if safe.get("api_key"):
+            safe["api_key"] = "****"
+        self._send_json(200, safe)
 
     def _get_projects(self):
         self._send_json(501, {'error': 'Not implemented'})
