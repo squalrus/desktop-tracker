@@ -6,14 +6,15 @@ A lightweight, background productivity tool that monitors how much time you spen
 
 This is perfect for freelancers, remote workers, or anyone looking to separate their "Work" desktop context from their "Personal" desktop context natively within Windows.
 
-<img width="1002" height="330" alt="image" src="https://github.com/user-attachments/assets/c003c0c8-310d-4d88-b6ee-e57aa0bdf6ac" />
+![Desktop Tracker screenshot](screenshot.png)
 
 ## ✨ Features
 
 - **System Tray Integration:** Runs silently in the background. Access the dashboard or quit the app directly from your Windows taskbar.
 - **Smart Idle Detection:** Automatically stops tracking if you haven't touched your mouse or keyboard in 5 minutes, or if your Windows machine is locked, ensuring highly accurate data.
 - **Historical Data & CSV Export:** Use the built-in calendar to view previous days' usage. Export your entire history to a `.csv` file with a single click for invoicing or personal analytics.
-- **Weekly Breakdown:** Below each day's view, see the full Monday–Sunday week totals — hours per desktop and each desktop's share of the week — so you can spot patterns at a glance.
+- **Day, Week & Month Views:** The dashboard shows a breakdown for the selected day, the surrounding Monday–Sunday week, and the full calendar month — each with a daily average and total.
+- **Charts:** A donut chart visualises the day's desktop split. Stacked bar charts for the week and month show how time was distributed across each day at a glance.
 - **Privacy First:** All data is stored locally in a simple `desktop_data.json` file. No cloud syncing, no accounts.
 - **Real-time Dashboard:** A local web interface that updates automatically every 10 seconds, featuring alphabetically ordered desktop cards with visual percentage bars and precise time readouts (e.g., `2h 15m 30s`).
 - **Automatic Dark Mode:** The dashboard instantly matches your system or browser's Light/Dark mode preference.
@@ -118,7 +119,7 @@ To remove auto-start: press `Win + R`, type `shell:startup`, and delete `Desktop
 | File | Purpose |
 | --- | --- |
 | `tracker.py` | Main script. Spawns a tracking thread (pyvda + ctypes for idle/lock detection) and an HTTP server thread, then runs the System Tray icon on the main thread. |
-| `index.html` | Static frontend served locally. Fetches `desktop_data.json`, renders alphabetically ordered desktop cards with progress bars for the selected day and a weekly Monday–Sunday breakdown, and handles CSV export — all client-side. |
+| `index.html` | Static frontend served locally. Renders day, week, and month views with redesigned cards, a donut chart for the day split, and stacked bar charts for week/month breakdowns. Handles CSV export. All client-side. |
 | `desktop_data.json` | Date-keyed JSON storing raw tracked seconds per desktop. Written to disk every 5 seconds to minimize I/O. Created automatically on first run. |
 | `install_autostart.bat` | Writes a `.vbs` file to `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup` that silently launches `DesktopTracker.exe` on login. |
 | `icon.png` / `icon.ico` | Application icons. `icon.png` is loaded first for the system tray (RGBA transparency); `icon.ico` is the fallback. `icon.png` is also used as the browser tab favicon. |
@@ -139,4 +140,4 @@ Contributions, issues, and feature requests are welcome! Feel free to check the 
 
 ## 📝 License
 
-This project is open source and available under the MIT License.
+This project is open source and available under the [MIT License](LICENSE).
