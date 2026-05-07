@@ -2,141 +2,68 @@
 
 <img src="icon.svg" width="64" height="64" alt="Desktop Tracker icon" />
 
-A lightweight, background productivity tool that monitors how much time you spend on each Windows Virtual Desktop. It quietly logs your usage from the Windows System Tray and visualizes your daily statistics on a clean, responsive, locally-hosted web dashboard.
-
-This is perfect for freelancers, remote workers, or anyone looking to separate their "Work" desktop context from their "Personal" desktop context natively within Windows.
+A lightweight Windows app that quietly tracks how much time you spend on each Virtual Desktop and shows it in a simple browser dashboard. No accounts, no cloud, no subscriptions.
 
 ![Desktop Tracker screenshot](screenshot.png)
 
 ## ✨ Features
 
-- **System Tray Integration:** Runs silently in the background. Access the dashboard or quit the app directly from your Windows taskbar.
-- **Smart Idle Detection:** Automatically stops tracking if you haven't touched your mouse or keyboard in 5 minutes, or if your Windows machine is locked, ensuring highly accurate data.
-- **Historical Data & CSV Export:** Use the built-in calendar to view previous days' usage. Export your entire history to a `.csv` file with a single click for invoicing or personal analytics.
-- **Day, Week & Month Views:** The dashboard shows a breakdown for the selected day, the surrounding Monday–Sunday week, and the full calendar month — each with a daily average and total.
-- **Charts:** A donut chart visualises the day's desktop split. Stacked bar charts for the week and month show how time was distributed across each day at a glance.
-- **Privacy First:** All data is stored locally in a simple `desktop_data.json` file. No cloud syncing, no accounts.
-- **Real-time Dashboard:** A local web interface that updates automatically every 10 seconds, featuring alphabetically ordered desktop cards with visual percentage bars and precise time readouts (e.g., `2h 15m 30s`).
-- **Automatic Dark Mode:** The dashboard instantly matches your system or browser's Light/Dark mode preference.
+- Runs silently in the background from your system tray — no open windows
+- Automatically pauses when you step away or lock your computer
+- **Day, Week & Month views** — see your desktop time broken down by day, with weekly and monthly totals and daily averages
+- **Charts** — donut chart for the day split, stacked bar charts for week and month
+- **BambooHR integration** — sync tracked time directly to BambooHR Time Tracking, mapped per desktop to a project
+- Export all history to a CSV file with one click
+- Automatically matches your Windows light or dark theme
 
 ---
 
-## ⚡ Quick Start (No technical experience needed)
+## ⚡ Quick Start
 
-1. Go to the [Releases page](../../releases) and download the latest `DesktopTracker-Windows.zip`.
-2. Unzip it and move the folder to a user-writable location such as `C:\Users\YourName\DesktopTracker`. **Avoid `C:\Program Files`** — Windows restricts file writes there, and the tracker needs to create `desktop_data.json` alongside the `.exe`.
-3. Double-click `DesktopTracker.exe` to start the tracker. A small icon will appear near your clock. If Windows shows a security warning, click **More info → Run anyway**.
-4. Double-click `install_autostart.bat` so the tracker starts automatically every time you log in.
+1. Go to the [Releases page](../../releases) and download the latest `DesktopTracker-Windows.zip`
+2. Unzip and move the folder somewhere writable — e.g. `C:\Users\YourName\DesktopTracker` (**not** `C:\Program Files`, as the app writes its data file alongside the `.exe`)
+3. Double-click `DesktopTracker.exe`. A small icon appears near your clock. If Windows shows a security warning, click **More info → Run anyway**
+4. Double-click `install_autostart.bat` so the tracker starts automatically every time you log in
 
-To open your dashboard, double-click the tray icon or visit `http://localhost:8000` in any browser.
-
----
-
-## 🚀 Option A: Pre-Built Executable (No Python Required)
-
-The easiest way to get started. Every push to `main` automatically builds a standalone `DesktopTracker.exe` via GitHub Actions — no Python installation needed.
-
-### 1. Download the Latest Build
-
-Go to the [Releases page](../../releases) and download the latest `DesktopTracker-Windows` ZIP.
-
-### 2. Extract the ZIP
-
-Unzip the artifact. You will find:
-
-```text
-DesktopTracker.exe
-index.html
-icon.png
-icon.ico
-install_autostart.bat
-```
-
-Keep all files together in the same folder — the `.exe` serves `index.html` as the dashboard and reads/writes `desktop_data.json` in the same directory.
-
-### 3. Run It
-
-Double-click `DesktopTracker.exe`. A tray icon will appear near your clock.
-
-- **Double-click** the tray icon to open the dashboard, or navigate to `http://localhost:8000`.
-- **Right-click → Quit** to exit cleanly.
-
-### 4. Auto-Start (Optional)
-
-Double-click `install_autostart.bat`. It will add a silent launcher to your Windows Startup folder so `DesktopTracker.exe` starts automatically on every login with no terminal window.
-
-To remove auto-start: press `Win + R`, type `shell:startup`, and delete `DesktopTracker.vbs`.
+Open the dashboard by double-clicking the tray icon, or visit `http://localhost:8000` in any browser.
 
 ---
 
-## 🐍 Option B: Run from Source (Python)
+## 📊 Using the Dashboard
 
-Use this method if you want to modify the code or prefer running directly with Python.
+The dashboard has three sections — **Day**, **Week**, and **Month** — all driven by the date picker in the top-right corner.
 
-### Prerequisites
+- Use the **date picker** to navigate to any past day
+- Each section shows a total, a daily average, and a breakdown per desktop
+- **Export CSV** downloads your full history as a spreadsheet
 
-- **Operating System:** Windows 10 or Windows 11
-- **Python:** Python 3.x installed (ensure **"Add Python to PATH"** is checked during installation)
+### Syncing to BambooHR
 
-### Setup
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/squalrus/desktop-tracker.git
-cd desktop-tracker
-```
-
-### 2. Install Dependencies
-
-```bash
-pip install pyvda pystray Pillow
-```
-
-### 3. Run the Tracker
-
-```bash
-python tracker.py
-```
-
-A tray icon will appear near your clock. Double-click it to open the dashboard, or navigate to `http://localhost:8000`.
-
-### Auto-Start (Recommended)
-
-To have the tracker start automatically and invisibly every time you log into Windows:
-
-1. Locate `install_autostart.bat` in the project folder.
-2. Double-click to run it.
-
-A command prompt will briefly appear confirming a silent launcher (`DesktopTracker.vbs`) has been added to your Windows Startup folder. The tracker will now start invisibly on every login with no terminal window.
-
-To remove auto-start: press `Win + R`, type `shell:startup`, and delete `DesktopTracker.vbs`.
+If you use BambooHR for time tracking, the **Sync to BambooHR** button in the Day section submits that day's data directly. See [BambooHR Setup](#-bamboohr-setup) below.
 
 ---
 
-## 🛠️ How It Works
+## 🔗 BambooHR Setup
 
-| File | Purpose |
-| --- | --- |
-| `tracker.py` | Main script. Spawns a tracking thread (pyvda + ctypes for idle/lock detection) and an HTTP server thread, then runs the System Tray icon on the main thread. |
-| `index.html` | Static frontend served locally. Renders day, week, and month views with redesigned cards, a donut chart for the day split, and stacked bar charts for week/month breakdowns. Handles CSV export. All client-side. |
-| `desktop_data.json` | Date-keyed JSON storing raw tracked seconds per desktop. Written to disk every 5 seconds to minimize I/O. Created automatically on first run. |
-| `install_autostart.bat` | Writes a `.vbs` file to `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup` that silently launches `DesktopTracker.exe` on login. |
-| `icon.png` / `icon.ico` | Application icons. `icon.png` is loaded first for the system tray (RGBA transparency); `icon.ico` is the fallback. `icon.png` is also used as the browser tab favicon. |
-| `.github/workflows/build.yml` | GitHub Actions workflow that builds `DesktopTracker.exe` with PyInstaller on every push to `main`, then publishes a GitHub Release with the files attached. |
+The dashboard includes a built-in sync to BambooHR's Daily Totals time tracking. You will need your BambooHR API key and your company's subdomain.
 
-**Key implementation details:**
+**Get your API key:** In BambooHR, click your profile photo → **API Keys** → **Add New Key**, give it a name, and copy the key immediately — it is only shown once.
 
-- The HTTP server binds to `127.0.0.1` (not `0.0.0.0`) to avoid Windows Firewall prompts.
-- Idle detection uses the Win32 `GetLastInputInfo` API. If idle time exceeds 5 minutes, tracking pauses automatically.
-- Lock detection uses `OpenDesktop`/`SwitchDesktop` to check if the workstation is locked.
-- When packaged as an `.exe` via PyInstaller, path resolution uses `sys.executable` so all files are found relative to the `.exe` rather than the script.
+**Configure the integration:**
+
+1. Click **⚙** in the top-right of the dashboard
+2. Enter your **Company Domain** (the part before `.bamboohr.com`) and **API Key**, then click **Save**
+3. Click **Test Connection** — your BambooHR projects load automatically
+4. Map each virtual desktop to a project using the dropdowns, then click **Save Mappings**
+5. Choose a **Time Rounding** setting (default: 15 minutes)
+
+**Syncing a day:**
+
+Select any day using the date picker, then click **Sync to BambooHR** in the Day section. Desktops without a project mapping are skipped with a warning prompt. Re-syncing a previously submitted day replaces the old entries — no double-counting.
+
+> If your company uses a timesheet approval workflow, synced entries will appear as pending until approved by a manager. Avoid re-syncing days that have already been approved.
 
 ---
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](../../issues).
 
 ## 📝 License
 

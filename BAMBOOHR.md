@@ -1,14 +1,12 @@
-# BambooHR Integration Plan
+# BambooHR Integration
 
-This document covers the design decisions and implementation plan for syncing Desktop Tracker time data into BambooHR's Time Tracking module. It is intended for review before any code is written.
+This document covers the design decisions and implementation notes for syncing Desktop Tracker time data into BambooHR's Time Tracking module.
 
 ---
 
 ## Authentication
 
-BambooHR does not use OAuth client ID / client secret. It uses a **per-user API key** that each employee generates from their own BambooHR account (Profile → API Keys). Authentication is HTTP Basic with the API key as the username and the literal string `x` as the password.
-
-The two required credentials are:
+BambooHR does not use OAuth. It uses a **per-user API key** generated from each employee's own BambooHR account (Profile → API Keys → Add New Key). Authentication is HTTP Basic with the API key as the username and the literal string `x` as the password.
 
 | Field | Description | Example |
 | --- | --- | --- |
@@ -17,19 +15,19 @@ The two required credentials are:
 
 All API calls use: `https://api.bamboohr.com/api/gateway.php/{companyDomain}/v1/`
 
-The employee ID (`/v1/employees/0?fields=id`) can be resolved automatically from the API key at first connection, so the user does not need to find it manually.
+The employee ID is resolved automatically from the API key on the first sync (`GET /v1/employees/0?fields=id`) and stored in `bamboohr_config.json`. The user never needs to find it manually.
 
 ---
 
-## Why API calls must go through the Python backend
+## Why API calls go through the Python backend
 
-BambooHR's API does not support CORS from browser origins, so the dashboard JavaScript cannot call it directly. All BambooHR requests must be proxied through `tracker.py`. This also keeps the API key out of the browser entirely — it is stored on disk and used server-side only, never transmitted to the frontend.
+BambooHR's API does not support CORS from browser origins. All BambooHR requests are proxied through `tracker.py`. This also keeps the API key server-side only — it is stored on disk and never transmitted to the browser. The GET `/api/bamboohr/config` endpoint masks the key as `****` before returning it to the frontend.
 
 ---
 
 ## Configuration file
 
-A new `bamboohr_config.json` stored alongside `desktop_data.json`:
+`bamboohr_config.json` is stored alongside `desktop_data.json` in the application directory:
 
 ```json
 {
@@ -37,60 +35,54 @@ A new `bamboohr_config.json` stored alongside `desktop_data.json`:
   "api_key": "abc123def456",
   "employee_id": "42",
   "mappings": {
-    "Work":    "PROJECT_ID_A",
-    "Dev":     "PROJECT_ID_B",
+    "Work":     "PROJECT_ID_A",
+    "Dev":      "PROJECT_ID_B",
     "Personal": null
   },
   "synced_dates": {
-    "2026-05-01": { "status": "ok", "timestamp": "2026-05-01T23:05:00" },
-    "2026-05-02": { "status": "ok", "timestamp": "2026-05-02T23:05:00" }
+    "2026-05-01": {
+      "status":    "ok",
+      "timestamp": "2026-05-01T17:05:00",
+      "entry_ids": ["1001", "1002"]
+    }
   },
-  "auto_sync": false,
+  "rounding":       "15min",
+  "auto_sync":      false,
   "auto_sync_hour": 23
 }
 ```
 
-`mappings` maps each known desktop name to a BambooHR project ID, or `null` to skip that desktop during sync. `synced_dates` tracks which dates have already been submitted and when, enabling re-sync detection.
-
-The config file is readable only by the local user and never leaves the machine.
+`mappings` maps each known desktop name to a BambooHR project ID, or `null` to skip that desktop. `synced_dates` stores the BambooHR entry IDs from each sync so re-syncing a day can delete them before creating new ones — preventing double-counting.
 
 ---
 
-## Desktop → Project mapping
+## Decisions made during implementation
 
-Each virtual desktop the tracker has ever seen needs to be assignable to a BambooHR project (or explicitly excluded). The project list is fetched from the BambooHR API (`GET /v1/timetracking/projects`) at configuration time and cached locally.
-
-The mapping editor in the dashboard settings panel would show one row per known desktop:
-
-```
-Desktop Name     →   BambooHR Project
-──────────────────────────────────────
-Work             →   [ Client Work ▼ ]
-Dev              →   [ Internal Dev ▼ ]
-Personal         →   [ — skip — ▼ ]
-```
-
-Unmapped desktops (not in the config yet) are skipped during sync with a warning shown to the user.
+| Decision | Outcome |
+| --- | --- |
+| BambooHR time tracking mode | **Daily Totals** (POST a single hours value per desktop per day) |
+| Time rounding | **Configurable** — 15 minutes (default), 6 minutes, or exact decimal |
+| Auth mechanism | API key + company domain |
+| Where API calls are made | Python backend (CORS prevents browser-side calls) |
+| Config storage | `bamboohr_config.json` alongside `desktop_data.json` |
+| Default sync mode | Manual button per day |
+| Auto-sync | **Deferred** — manual sync via the date picker covers previous days |
+| Re-sync behaviour | Delete previous entries by stored ID, then recreate |
+| Unmapped desktops | Skip with a confirmation prompt shown before sync |
 
 ---
 
-## Sync strategy
+## Time rounding
 
-### Recommendation: manual button, with optional previous-day auto-sync
+Three options are configurable in the settings panel:
 
-**Manual sync** is the right default. Time tracking data submitted to an employer should be reviewed before it is sent — users may want to adjust the desktop→project mapping, exclude personal time, or verify the numbers look correct. A "Sync to BambooHR" button in the Day section header gives explicit control.
+| Setting | Behaviour | Example |
+| --- | --- | --- |
+| `15min` (default) | Round to nearest 0.25h | 3h 47m → 3.75h |
+| `6min` | Round to nearest 0.1h | 3h 47m → 3.8h |
+| `exact` | Four decimal places | 3h 47m → 3.7833h |
 
-**Auto-sync for the previous day** is the right optional enhancement. Rather than syncing mid-day (where data is incomplete), auto-sync would trigger each morning for the *previous* calendar day. By 9 AM, yesterday's data is final and unlikely to change. This setting would be off by default and configurable:
-
-```
-Auto-sync: [off]  or  [sync previous day at 09:00 ▼]
-```
-
-This avoids the partial-day problem of syncing mid-day while still being hands-free.
-
-### Re-sync behaviour
-
-If the user syncs a day and then more time is tracked (e.g., they sync mid-afternoon and keep working), the next sync should **delete the previous entries and recreate them** rather than appending. The BambooHR entry IDs from the first sync should be stored in `synced_dates` so they can be deleted before the new entries are created.
+Entries that round to exactly zero are skipped.
 
 ---
 
@@ -100,114 +92,69 @@ If the user syncs a day and then more time is tracked (e.g., they sync mid-after
 desktop_data.json
        │
        ▼
-[ Day aggregation ]   ──→  {Work: 14400s, Dev: 7200s, Personal: 3600s}
+[ Day aggregation ]    ──→  {Work: 14400s, Dev: 7200s, Personal: 3600s}
        │
        ▼
-[ Apply mappings ]    ──→  {PROJECT_ID_A: 4.0h, PROJECT_ID_B: 2.0h}  (Personal skipped)
+[ Apply mappings ]     ──→  {PROJECT_ID_A: 4.0h, PROJECT_ID_B: 2.0h}  (Personal skipped)
        │
        ▼
-[ POST to BambooHR ]  ──→  one time entry per mapped desktop per day
+[ Delete old entries ] ──→  DELETE /timetracking/employees/{id}/entries/{entryId}  (if re-sync)
        │
        ▼
-[ Write synced_dates ] ──→  record entry IDs + timestamp in bamboohr_config.json
+[ POST to BambooHR ]   ──→  one time entry per mapped desktop
+       │
+       ▼
+[ Write synced_dates ] ──→  store entry IDs + timestamp in bamboohr_config.json
 ```
 
-Each synced desktop becomes one BambooHR time entry:
+Each synced desktop produces one BambooHR time entry:
 
 ```json
 {
-  "employeeId": "42",
-  "date": "2026-05-02",
+  "date":          "2026-05-02",
   "trackingHours": 4.0,
-  "projectId": "PROJECT_ID_A",
-  "note": "Tracked by Desktop Tracker"
+  "projectId":     "PROJECT_ID_A",
+  "note":          "Tracked by Desktop Tracker"
 }
 ```
 
-Hours are rounded to two decimal places. Seconds are not submitted.
-
 ---
 
-## Backend changes (tracker.py)
+## API endpoints added to tracker.py
 
-Four new HTTP endpoints served by the existing `SimpleHTTPRequestHandler`, which will need to be replaced with a handler that supports routing:
+`QuietHandler` (which extends `SimpleHTTPRequestHandler`) was extended to intercept `/api/` paths and route them, falling through to static file serving for everything else.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/api/bamboohr/config` | Returns config (API key masked as `****`) |
-| `POST` | `/api/bamboohr/config` | Saves updated config to disk |
+| `GET` | `/api/bamboohr/config` | Returns config with API key masked as `****` |
+| `POST` | `/api/bamboohr/config` | Saves config; sending `****` as the key preserves the stored value |
 | `GET` | `/api/bamboohr/projects` | Proxies project list from BambooHR API |
 | `POST` | `/api/bamboohr/sync` | Syncs a given date; body: `{"date": "2026-05-02"}` |
 
-`SimpleHTTPRequestHandler` only serves static files. The handler class will need to intercept `/api/` paths and handle them explicitly, falling through to file-serving for everything else.
+---
+
+## Sync sync for previous days
+
+The **Sync to BambooHR** button syncs whichever date is selected in the date picker — today or any past day. Re-syncing a previously submitted day deletes the stored BambooHR entry IDs before posting new ones.
+
+> **Approval workflow caveat:** If your company routes time entries through an approval workflow, re-syncing an already-approved day may require manager-level permissions to delete the old entries. In practice, avoid re-syncing days older than a few days.
 
 ---
 
-## Frontend changes (index.html)
+## Deferred: auto-sync (Step 7)
 
-### Settings panel
+Auto-sync was designed but not implemented. The intent was a background thread that fires each morning to sync the previous calendar day automatically. It was deferred because:
 
-A collapsible section (or modal) reachable from a gear icon in the page header:
+- Manual sync via the date picker already covers the previous-day case
+- Silent auto-sync can submit incorrect data if mappings are wrong, with no user review
+- Companies with approval workflows may prefer conscious submission
 
-- Company domain field
-- API key field (masked after entry, with a "reveal" toggle)
-- "Test connection" button — calls `/api/bamboohr/config` to validate credentials and auto-fill the employee ID
-- Project mapping table (one row per known desktop, dropdown per row)
-- Auto-sync toggle and time selector
-
-### Day section additions
-
-- **Sync button** in the Day section header: "Sync to BambooHR"
-- **Sync status badge**: small indicator showing last sync time for the selected date, or "Not synced" if the date has no entry in `synced_dates`
-- **Warning**: if the selected date has unmapped desktops with non-zero time, show a prompt before syncing
+All config fields for it (`auto_sync`, `auto_sync_hour`) are already in `bamboohr_config.json`, so it can be added later without a schema change.
 
 ---
 
-## Edge cases and open questions
+## Open items
 
-**1. Which BambooHR time tracking mode does the company use?**
-BambooHR has two time tracking modes: Clock In/Out (start/end times required) and Daily Totals (just hours). The sync endpoint will differ. This needs to be detected or made configurable. *Decision needed before implementation.*
-
-**2. Timesheet approval workflow**
-Some companies require time entries to go through an approval workflow. Programmatically created entries may land in a "pending approval" state. This is the expected behaviour and should be noted in the UI ("Entries submitted — pending manager approval if required").
-
-**3. Time rounding**
-Should tracked seconds be rounded to the nearest 6 minutes (0.1h), 15 minutes, or left as precise decimals? BambooHR accepts decimal hours. A rounding setting in the config would give users control. *Decision needed before implementation.*
-
-**4. What happens to desktops with very small amounts of time?**
-A desktop with 30 seconds tracked is technically a valid entry but adds noise. A minimum threshold (e.g., skip desktops with less than 5 minutes for the day) should be configurable.
-
-**5. Multi-day sync**
-The initial design syncs one day at a time. A "sync all unsynced days" option would be valuable for users who accumulate several days before syncing. This can be added in a follow-up.
-
-**6. `desktop_data.json` is the only data source**
-The sync reads from the same file the tracker writes to. If the file is corrupt on the day of a sync, the sync would silently send zero-time entries. The `load_data()` error handling already returns `{}` on corrupt files — the sync should detect an empty result for a date that should have data and warn the user before proceeding.
-
----
-
-## Implementation sequence (suggested order)
-
-1. **Backend routing** — extend the HTTP handler to support `/api/` routes alongside static file serving
-2. **Config read/write endpoints** — `/api/bamboohr/config` GET and POST
-3. **Project fetch endpoint** — `/api/bamboohr/projects` with BambooHR proxy call
-4. **Settings panel in UI** — credentials, test connection, project mapping editor
-5. **Sync endpoint** — `/api/bamboohr/sync` with full data-flow logic
-6. **Sync button and status badge in UI** — Day section
-7. **Auto-sync (optional)** — background thread checking the configured hour
-
-Steps 1–4 can be reviewed and tested independently before the actual sync (step 5) is built.
-
----
-
-## Summary
-
-| Decision | Recommendation |
-| --- | --- |
-| Auth mechanism | API key + company domain (not OAuth) |
-| Where API calls are made | Python backend (CORS blocker on browser side) |
-| Config storage | `bamboohr_config.json` alongside `desktop_data.json` |
-| Default sync mode | Manual button per day |
-| Auto-sync | Optional: previous day, triggered each morning |
-| Re-sync behaviour | Delete previous entries, recreate |
-| Unmapped desktops | Skip with a warning shown before sync |
-| Decisions needed before starting | BambooHR time tracking mode (clock in/out vs daily totals), time rounding increment |
+- **Minimum time threshold** — entries under ~5 minutes are currently included. A configurable threshold to skip noise would be a small addition.
+- **Multi-day bulk sync** — sync all unsynced days with one action. Currently each day requires a separate sync.
+- **Approval workflow awareness** — the UI currently has no way to know if a previously synced entry has been approved. Attempting to re-sync an approved entry may fail silently.
