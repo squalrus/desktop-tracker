@@ -291,6 +291,25 @@
       .status-ok    { color: #10b981; }
       .status-error { color: #ef4444; }
       .status-info  { color: var(--muted); }
+
+      /* Sync button + status badge */
+      .sync-area { display: flex; align-items: center; gap: 10px; }
+      .sync-btn {
+        padding: 5px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--card-bg);
+        color: var(--text);
+        font-size: 0.82em;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .sync-btn:hover:not(:disabled) { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+      .sync-btn:disabled { opacity: 0.55; cursor: default; }
+      .sync-status       { font-size: 0.76em; color: var(--muted); white-space: nowrap; }
+      .sync-status.ok    { color: #10b981; }
+      .sync-status.partial { color: #f59e0b; }
+      .sync-status.err   { color: #ef4444; }
     </style>
   </head>
   <body>
@@ -360,6 +379,10 @@
         <div>
           <span class="section-label">Day</span>
           <span id="day-sublabel" class="section-sublabel"></span>
+        </div>
+        <div class="sync-area">
+          <span id="sync-status" class="sync-status"></span>
+          <button id="sync-btn" class="sync-btn" style="display:none">Sync to BambooHR</button>
         </div>
         <span id="day-total" class="section-total"></span>
       </div>
@@ -660,6 +683,7 @@
           p.textContent = 'No data recorded for this day.';
           el.appendChild(p);
           document.getElementById('day-donut').innerHTML = '';
+          updateSyncUI(sel);
           return;
         }
 
@@ -668,6 +692,7 @@
           frag.appendChild(makeCard(desktop, secs, total, null));
         el.appendChild(frag);
         renderDonut(document.getElementById('day-donut'), data);
+        updateSyncUI(sel);
       }
 
       // ── Render: Week ──────────────────────────────────────────────────
@@ -812,7 +837,7 @@
       });
 
       document.getElementById('date-picker').addEventListener('change', renderAll);
-      fetchAndRenderData();
+      loadBhConfig().then(() => fetchAndRenderData());
       setInterval(fetchAndRenderData, 10000);
 
       // ── BambooHR Settings ───────────────────────────────────────────────
@@ -971,6 +996,104 @@
           bhMapStatus('Network error.', 'error');
         }
       });
+
+      // ── Sync button ─────────────────────────────────────────────────────
+      let bhConfig = null;
+
+      async function loadBhConfig() {
+        try {
+          bhConfig = await fetch('/api/bamboohr/config').then(r => r.json());
+        } catch (e) {
+          bhConfig = null;
+        }
+      }
+
+      function updateSyncUI(selectedDate) {
+        const btn       = document.getElementById('sync-btn');
+        const statusEl  = document.getElementById('sync-status');
+        const configured = bhConfig &&
+                           bhConfig.company_domain &&
+                           bhConfig.api_key === '****';
+
+        btn.style.display = configured ? '' : 'none';
+        if (!configured) { statusEl.textContent = ''; return; }
+
+        const info = (bhConfig.synced_dates || {})[selectedDate];
+        if (info) {
+          const ts      = new Date(info.timestamp);
+          const timeStr = ts.toLocaleTimeString(undefined,
+                          { hour: 'numeric', minute: '2-digit' });
+          const label   = info.status === 'partial' ? '⚠ Partial' : '✓ Synced';
+          statusEl.textContent = `${label} at ${timeStr}`;
+          statusEl.className   = `sync-status ${info.status === 'ok' ? 'ok' : 'partial'}`;
+        } else {
+          statusEl.textContent = 'Not synced';
+          statusEl.className   = 'sync-status';
+        }
+      }
+
+      document.getElementById('sync-btn').addEventListener('click', async () => {
+        const date = document.getElementById('date-picker').value;
+        if (!date) return;
+
+        // Warn about unmapped desktops before syncing.
+        const dayData  = globalData[date] || {};
+        const mappings = bhConfig?.mappings || {};
+        const unmapped = Object.keys(dayData)
+          .filter(d => dayData[d] > 0 && !mappings[d]);
+
+        if (unmapped.length > 0) {
+          const proceed = confirm(
+            `These desktops have no BambooHR project mapped and will be skipped:\n\n` +
+            unmapped.map(d => `  • ${d}`).join('\n') +
+            `\n\nProceed with sync?`
+          );
+          if (!proceed) return;
+        }
+
+        const btn      = document.getElementById('sync-btn');
+        const statusEl = document.getElementById('sync-status');
+        btn.disabled        = true;
+        btn.textContent     = 'Syncing…';
+        statusEl.textContent = '';
+        statusEl.className  = 'sync-status';
+
+        try {
+          const r      = await fetch('/api/bamboohr/sync', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ date }),
+          });
+          const result = await r.json();
+
+          if (r.ok) {
+            await loadBhConfig();
+            updateSyncUI(date);
+            const n   = result.synced?.length  || 0;
+            const sk  = result.skipped?.length || 0;
+            const err = result.errors?.length  || 0;
+            let msg = `✓ ${n} entr${n !== 1 ? 'ies' : 'y'} synced`;
+            if (sk)  msg += ` · ${sk} skipped`;
+            if (err) msg += ` · ${err} failed`;
+            statusEl.textContent = msg;
+            statusEl.className   = err ? 'sync-status partial' : 'sync-status ok';
+          } else {
+            statusEl.textContent = `✗ ${result.error || 'Sync failed'}`;
+            statusEl.className   = 'sync-status err';
+          }
+        } catch (e) {
+          statusEl.textContent = '✗ Network error';
+          statusEl.className   = 'sync-status err';
+        } finally {
+          btn.disabled    = false;
+          btn.textContent = 'Sync to BambooHR';
+        }
+      });
+
+      // Reload config when settings are saved so sync button appears immediately.
+      document.getElementById('bh-save-creds').addEventListener('click',
+        () => loadBhConfig(), { capture: true }
+      );
 
       function bhStatus(msg, type) {
         const el = document.getElementById('bh-status');
