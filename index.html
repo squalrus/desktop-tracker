@@ -328,6 +328,14 @@
             <button id="bh-reveal" class="icon-btn" title="Show / hide key">👁</button>
           </div>
         </div>
+        <div class="settings-row">
+          <label for="bh-rounding">Time Rounding</label>
+          <select id="bh-rounding" class="mapping-select" style="max-width:220px">
+            <option value="15min">15 minutes (0.25h)</option>
+            <option value="6min">6 minutes (0.1h)</option>
+            <option value="exact">Exact decimal</option>
+          </select>
+        </div>
         <div class="settings-actions">
           <button id="bh-save-creds">Save</button>
           <button id="bh-test">Test Connection</button>
@@ -832,6 +840,7 @@
             ? 'Key is saved — enter a new key to change it'
             : 'Your BambooHR API key';
           bhMappings = cfg.mappings || {};
+          document.getElementById('bh-rounding').value = cfg.rounding || '15min';
           // Auto-load projects if credentials are already configured
           if (cfg.company_domain && cfg.api_key === '****') {
             await fetchProjects(false);
@@ -846,7 +855,8 @@
       document.getElementById('bh-save-creds').addEventListener('click', async () => {
         const domain = document.getElementById('bh-domain').value.trim();
         const key    = document.getElementById('bh-apikey').value.trim();
-        const body   = { company_domain: domain };
+        const rounding = document.getElementById('bh-rounding').value;
+        const body     = { company_domain: domain, rounding };
         if (key) body.api_key = key;
 
         try {

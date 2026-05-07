@@ -62,7 +62,7 @@ status, _ = get("/api/bamboohr/projects")
 passed &= check("GET  /api/bamboohr/projects → 400", status, 400)
 
 status, _ = post("/api/bamboohr/sync")
-passed &= check("POST /api/bamboohr/sync     → 501", status, 501)
+passed &= check("POST /api/bamboohr/sync     → 400", status, 400)
 
 # Unknown API route returns 404
 status, _ = get("/api/unknown")
