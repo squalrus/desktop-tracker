@@ -272,6 +272,76 @@
       .filter-opt:hover { background: var(--bar-bg); }
       .filter-opt input { cursor: pointer; accent-color: #3b82f6; }
       .filter-hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+
+      /* BambooHR settings panel */
+      .icon-btn {
+        background: none;
+        border: 1px solid transparent;
+        cursor: pointer;
+        padding: 5px 7px;
+        border-radius: 6px;
+        color: var(--muted);
+        font-size: 1.05em;
+        line-height: 1;
+      }
+      .icon-btn:hover { color: var(--text); border-color: var(--border); }
+
+      .settings-panel {
+        display: none;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px 24px;
+        margin-bottom: 32px;
+        box-shadow: 0 2px 8px var(--shadow);
+      }
+      .settings-panel.open { display: block; }
+      .settings-section + .settings-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+      }
+      .settings-section h3 {
+        margin: 0 0 14px;
+        font-size: 0.75em;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+      .settings-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+      .settings-row label { width: 130px; font-size: 0.84em; color: var(--muted); flex-shrink: 0; }
+      .settings-row input[type="text"],
+      .settings-row input[type="password"] {
+        flex: 1; max-width: 300px; padding: 6px 10px; border-radius: 6px;
+        border: 1px solid var(--border); background: var(--bg);
+        color: var(--text); font-size: 0.86em;
+      }
+      .input-with-toggle { display: flex; gap: 6px; flex: 1; max-width: 300px; }
+      .input-with-toggle input { max-width: unset; flex: 1; }
+      .settings-actions {
+        display: flex; align-items: center; gap: 8px;
+        margin-top: 14px; padding-left: 142px; flex-wrap: wrap;
+      }
+      .settings-actions button {
+        padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+        background: var(--card-bg); color: var(--text); font-size: 0.84em; cursor: pointer;
+      }
+      .settings-actions button:hover { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+      .mapping-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+      .mapping-label {
+        width: 130px; font-size: 0.84em; color: var(--text); flex-shrink: 0;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .mapping-select {
+        flex: 1; max-width: 280px; padding: 5px 8px; border-radius: 6px;
+        border: 1px solid var(--border); background: var(--bg);
+        color: var(--text); font-size: 0.84em;
+      }
+      .settings-status { font-size: 0.82em; }
+      .status-ok    { color: #10b981; }
+      .status-error { color: #ef4444; }
+      .status-info  { color: var(--muted); }
     </style>
   </head>
   <body>
@@ -301,6 +371,7 @@
         </div>
         <button id="targets-btn">Targets</button>
         <button id="export-btn">Export CSV</button>
+        <button id="settings-btn" class="icon-btn" title="BambooHR Settings">⚙</button>
       </div>
     </div>
 
@@ -322,6 +393,45 @@
       <div class="targets-form" style="margin-top:12px">
         <button id="targets-save" class="targets-save-btn">Save</button>
         <span id="targets-saved" style="font-size:0.8em;color:#10b981;display:none">Saved ✓</span>
+      </div>
+    </div>
+
+    <!-- BambooHR Settings Panel -->
+    <div id="settings-panel" class="settings-panel">
+      <div class="settings-section">
+        <h3>BambooHR Integration</h3>
+        <div class="settings-row">
+          <label for="bh-domain">Company Domain</label>
+          <input id="bh-domain" type="text" placeholder="mycompany" autocomplete="off" />
+        </div>
+        <div class="settings-row">
+          <label for="bh-apikey">API Key</label>
+          <div class="input-with-toggle">
+            <input id="bh-apikey" type="password" placeholder="Your BambooHR API key" autocomplete="off" />
+            <button id="bh-reveal" class="icon-btn" title="Show / hide key">👁</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <label for="bh-rounding">Time Rounding</label>
+          <select id="bh-rounding" class="mapping-select" style="max-width:220px">
+            <option value="15min">15 minutes (0.25h)</option>
+            <option value="6min">6 minutes (0.1h)</option>
+            <option value="exact">Exact decimal</option>
+          </select>
+        </div>
+        <div class="settings-actions">
+          <button id="bh-save-creds">Save</button>
+          <button id="bh-test">Test Connection</button>
+          <span id="bh-status" class="settings-status"></span>
+        </div>
+      </div>
+      <div class="settings-section" id="mapping-section" style="display:none">
+        <h3>Desktop → Project Mapping</h3>
+        <div id="mapping-rows"></div>
+        <div class="settings-actions">
+          <button id="bh-save-mappings">Save Mappings</button>
+          <span id="bh-map-status" class="settings-status"></span>
+        </div>
       </div>
     </div>
 
