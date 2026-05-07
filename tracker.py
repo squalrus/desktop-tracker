@@ -10,7 +10,7 @@ import socketserver
 import urllib.request
 import urllib.error
 import base64
-from datetime import date
+from datetime import date, datetime
 from pyvda import VirtualDesktop
 import pystray
 from PIL import Image, ImageDraw
@@ -79,6 +79,7 @@ _BAMBOOHR_DEFAULTS = {
     "employee_id":    "",
     "mappings":       {},
     "synced_dates":   {},
+    "rounding":       "15min",   # "15min" | "6min" | "exact"
     "auto_sync":      False,
     "auto_sync_hour": 23,
 }
@@ -99,6 +100,13 @@ def save_bamboohr_config(config):
             json.dump(config, f, indent=4)
     except OSError:
         pass
+
+# --- BambooHR Helpers ---
+def round_hours(seconds, mode):
+    h = seconds / 3600
+    if mode == "15min": return round(h * 4)  / 4
+    if mode == "6min":  return round(h * 10) / 10
+    return round(h, 4)  # exact
 
 # --- BambooHR API Helper ---
 def bamboohr_request(domain, api_key, method, path, body=None):
@@ -251,7 +259,103 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         self._send_json(status, data)
 
     def _post_sync(self):
-        self._send_json(501, {'error': 'Not implemented'})
+        try:
+            body = self._read_body()
+        except (json.JSONDecodeError, ValueError):
+            self._send_json(400, {"error": "Invalid JSON"})
+            return
+
+        date_str = body.get("date", "").strip()
+        if not date_str:
+            self._send_json(400, {"error": "date is required"})
+            return
+
+        cfg      = load_bamboohr_config()
+        domain   = cfg.get("company_domain", "").strip()
+        api_key  = cfg.get("api_key", "").strip()
+        emp_id   = cfg.get("employee_id", "").strip()
+        mappings = cfg.get("mappings", {})
+        rounding = cfg.get("rounding", "15min")
+
+        if not domain or not api_key:
+            self._send_json(400, {"error": "BambooHR credentials not configured."})
+            return
+
+        # Resolve employee ID from the API if not yet stored.
+        if not emp_id:
+            status, resp = bamboohr_request(domain, api_key, "GET",
+                                            "employees/0?fields=id")
+            if status != 200:
+                self._send_json(status, {"error": "Could not resolve employee ID.",
+                                         "detail": resp})
+                return
+            emp_id = str(resp.get("id", ""))
+            cfg["employee_id"] = emp_id
+            save_bamboohr_config(cfg)
+
+        # Load tracking data for the requested date.
+        day_data = load_data().get(date_str, {})
+        if not day_data:
+            self._send_json(400, {"error": f"No tracking data for {date_str}."})
+            return
+
+        # Delete previously synced entries so re-sync doesn't double-count.
+        prev = cfg.get("synced_dates", {}).get(date_str, {})
+        for entry_id in prev.get("entry_ids", []):
+            bamboohr_request(domain, api_key, "DELETE",
+                             f"timetracking/employees/{emp_id}/entries/{entry_id}")
+
+        # Build and POST one entry per mapped desktop.
+        synced  = []
+        skipped = []
+        errors  = []
+
+        for desktop, seconds in day_data.items():
+            project_id = mappings.get(desktop)
+            if not project_id:
+                skipped.append(desktop)
+                continue
+
+            hours = round_hours(seconds, rounding)
+            if hours == 0:
+                skipped.append(desktop)
+                continue
+
+            status, resp = bamboohr_request(
+                domain, api_key, "POST",
+                f"timetracking/employees/{emp_id}/entries",
+                body={
+                    "date":          date_str,
+                    "trackingHours": hours,
+                    "projectId":     project_id,
+                    "note":          "Tracked by Desktop Tracker",
+                },
+            )
+
+            if status in (200, 201):
+                synced.append({"desktop": desktop, "hours": hours,
+                               "id": resp.get("id")})
+            else:
+                errors.append({"desktop": desktop, "error": resp})
+
+        if errors and not synced:
+            self._send_json(502, {"error": "All entries failed.", "errors": errors})
+            return
+
+        # Persist sync metadata for re-sync and status display.
+        cfg.setdefault("synced_dates", {})[date_str] = {
+            "status":    "ok" if not errors else "partial",
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "entry_ids": [s["id"] for s in synced if s.get("id")],
+        }
+        save_bamboohr_config(cfg)
+
+        self._send_json(200, {
+            "date":    date_str,
+            "synced":  synced,
+            "skipped": skipped,
+            "errors":  errors,
+        })
 
 def tracker_loop():
     loop_count = 0
