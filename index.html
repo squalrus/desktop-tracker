@@ -175,6 +175,141 @@
         vertical-align: middle;
       }
       .no-data { color: var(--muted); font-size: 0.88em; padding: 4px 0; }
+
+      /* Settings gear button */
+      .icon-btn {
+        background: none;
+        border: 1px solid transparent;
+        cursor: pointer;
+        padding: 5px 7px;
+        border-radius: 6px;
+        color: var(--muted);
+        font-size: 1.05em;
+        line-height: 1;
+      }
+      .icon-btn:hover { color: var(--text); border-color: var(--border); }
+
+      /* Settings panel */
+      .settings-panel {
+        display: none;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px 24px;
+        margin-bottom: 32px;
+        box-shadow: 0 2px 8px var(--shadow);
+      }
+      .settings-panel.open { display: block; }
+
+      .settings-section + .settings-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+      }
+      .settings-section h3 {
+        margin: 0 0 14px;
+        font-size: 0.75em;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+      .settings-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .settings-row label {
+        width: 130px;
+        font-size: 0.84em;
+        color: var(--muted);
+        flex-shrink: 0;
+      }
+      .settings-row input[type="text"],
+      .settings-row input[type="password"] {
+        flex: 1;
+        max-width: 300px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 0.86em;
+      }
+      .input-with-toggle { display: flex; gap: 6px; flex: 1; max-width: 300px; }
+      .input-with-toggle input { max-width: unset; flex: 1; }
+
+      .settings-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        padding-left: 142px;
+        flex-wrap: wrap;
+      }
+      .settings-actions button {
+        padding: 6px 14px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--card-bg);
+        color: var(--text);
+        font-size: 0.84em;
+        cursor: pointer;
+      }
+      .settings-actions button:hover { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
+      /* Mapping rows */
+      .mapping-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .mapping-label {
+        width: 130px;
+        font-size: 0.84em;
+        color: var(--text);
+        flex-shrink: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .mapping-select {
+        flex: 1;
+        max-width: 280px;
+        padding: 5px 8px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 0.84em;
+      }
+
+      /* Status messages */
+      .settings-status { font-size: 0.82em; }
+      .status-ok    { color: #10b981; }
+      .status-error { color: #ef4444; }
+      .status-info  { color: var(--muted); }
+
+      /* Sync button + status badge */
+      .sync-area { display: flex; align-items: center; gap: 10px; }
+      .sync-btn {
+        padding: 5px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--card-bg);
+        color: var(--text);
+        font-size: 0.82em;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .sync-btn:hover:not(:disabled) { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+      .sync-btn:disabled { opacity: 0.55; cursor: default; }
+      .sync-status       { font-size: 0.76em; color: var(--muted); white-space: nowrap; }
+      .sync-status.ok    { color: #10b981; }
+      .sync-status.partial { color: #f59e0b; }
+      .sync-status.err   { color: #ef4444; }
     </style>
   </head>
   <body>
@@ -192,7 +327,50 @@
       <div class="controls">
         <input type="date" id="date-picker" />
         <button id="export-btn">Export CSV</button>
+        <button id="settings-btn" class="icon-btn" title="BambooHR Settings">⚙</button>
       </div>
+    </div>
+
+    <!-- BambooHR Settings Panel -->
+    <div id="settings-panel" class="settings-panel">
+
+      <div class="settings-section">
+        <h3>BambooHR Integration</h3>
+        <div class="settings-row">
+          <label for="bh-domain">Company Domain</label>
+          <input id="bh-domain" type="text" placeholder="mycompany" autocomplete="off" />
+        </div>
+        <div class="settings-row">
+          <label for="bh-apikey">API Key</label>
+          <div class="input-with-toggle">
+            <input id="bh-apikey" type="password" placeholder="Your BambooHR API key" autocomplete="off" />
+            <button id="bh-reveal" class="icon-btn" title="Show / hide key">👁</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <label for="bh-rounding">Time Rounding</label>
+          <select id="bh-rounding" class="mapping-select" style="max-width:220px">
+            <option value="15min">15 minutes (0.25h)</option>
+            <option value="6min">6 minutes (0.1h)</option>
+            <option value="exact">Exact decimal</option>
+          </select>
+        </div>
+        <div class="settings-actions">
+          <button id="bh-save-creds">Save</button>
+          <button id="bh-test">Test Connection</button>
+          <span id="bh-status" class="settings-status"></span>
+        </div>
+      </div>
+
+      <div class="settings-section" id="mapping-section" style="display:none">
+        <h3>Desktop → Project Mapping</h3>
+        <div id="mapping-rows"></div>
+        <div class="settings-actions">
+          <button id="bh-save-mappings">Save Mappings</button>
+          <span id="bh-map-status" class="settings-status"></span>
+        </div>
+      </div>
+
     </div>
 
     <!-- Day -->
@@ -201,6 +379,10 @@
         <div>
           <span class="section-label">Day</span>
           <span id="day-sublabel" class="section-sublabel"></span>
+        </div>
+        <div class="sync-area">
+          <span id="sync-status" class="sync-status"></span>
+          <button id="sync-btn" class="sync-btn" style="display:none">Sync to BambooHR</button>
         </div>
         <span id="day-total" class="section-total"></span>
       </div>
@@ -501,6 +683,7 @@
           p.textContent = 'No data recorded for this day.';
           el.appendChild(p);
           document.getElementById('day-donut').innerHTML = '';
+          updateSyncUI(sel);
           return;
         }
 
@@ -509,6 +692,7 @@
           frag.appendChild(makeCard(desktop, secs, total, null));
         el.appendChild(frag);
         renderDonut(document.getElementById('day-donut'), data);
+        updateSyncUI(sel);
       }
 
       // ── Render: Week ──────────────────────────────────────────────────
@@ -653,8 +837,275 @@
       });
 
       document.getElementById('date-picker').addEventListener('change', renderAll);
-      fetchAndRenderData();
+      loadBhConfig().then(() => fetchAndRenderData());
       setInterval(fetchAndRenderData, 10000);
+
+      // ── BambooHR Settings ───────────────────────────────────────────────
+      let bhProjects = [];
+      let bhMappings = {};
+
+      document.getElementById('settings-btn').addEventListener('click', () => {
+        const panel  = document.getElementById('settings-panel');
+        const isOpen = panel.classList.toggle('open');
+        if (isOpen) loadSettingsPanel();
+      });
+
+      document.getElementById('bh-reveal').addEventListener('click', () => {
+        const f = document.getElementById('bh-apikey');
+        f.type = f.type === 'password' ? 'text' : 'password';
+      });
+
+      async function loadSettingsPanel() {
+        try {
+          const cfg = await fetch('/api/bamboohr/config').then(r => r.json());
+          document.getElementById('bh-domain').value = cfg.company_domain || '';
+          const keyField = document.getElementById('bh-apikey');
+          keyField.value = '';
+          keyField.placeholder = cfg.api_key === '****'
+            ? 'Key is saved — enter a new key to change it'
+            : 'Your BambooHR API key';
+          bhMappings = cfg.mappings || {};
+          document.getElementById('bh-rounding').value = cfg.rounding || '15min';
+          // Auto-load projects if credentials are already configured
+          if (cfg.company_domain && cfg.api_key === '****') {
+            await fetchProjects(false);
+          } else {
+            renderMappings();
+          }
+        } catch (e) {
+          bhStatus('Could not load settings.', 'error');
+        }
+      }
+
+      document.getElementById('bh-save-creds').addEventListener('click', async () => {
+        const domain = document.getElementById('bh-domain').value.trim();
+        const key    = document.getElementById('bh-apikey').value.trim();
+        const rounding = document.getElementById('bh-rounding').value;
+        const body     = { company_domain: domain, rounding };
+        if (key) body.api_key = key;
+
+        try {
+          const r = await fetch('/api/bamboohr/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (r.ok) {
+            bhStatus('Settings saved.', 'ok');
+            const keyField = document.getElementById('bh-apikey');
+            keyField.value = '';
+            keyField.placeholder = 'Key is saved — enter a new key to change it';
+          } else {
+            bhStatus('Failed to save.', 'error');
+          }
+        } catch (e) {
+          bhStatus('Network error.', 'error');
+        }
+      });
+
+      document.getElementById('bh-test').addEventListener('click', () => fetchProjects(true));
+
+      async function fetchProjects(verbose) {
+        if (verbose) bhStatus('Connecting…', 'info');
+        try {
+          const r = await fetch('/api/bamboohr/projects');
+          if (r.ok) {
+            bhProjects = await r.json();
+            if (verbose) bhStatus(
+              `Connected — ${bhProjects.length} project${bhProjects.length !== 1 ? 's' : ''} loaded.`,
+              'ok'
+            );
+            document.getElementById('mapping-section').style.display = '';
+            renderMappings();
+          } else {
+            const err = await r.json().catch(() => ({}));
+            if (verbose) bhStatus(`Connection failed: ${err.error || r.status}`, 'error');
+            document.getElementById('mapping-section').style.display = 'none';
+          }
+        } catch (e) {
+          if (verbose) bhStatus('Network error.', 'error');
+        }
+      }
+
+      function renderMappings() {
+        const desktops = [...new Set(
+          Object.values(globalData).flatMap(d => Object.keys(d))
+        )].sort();
+
+        const rows = document.getElementById('mapping-rows');
+        rows.innerHTML = '';
+
+        if (desktops.length === 0) {
+          rows.textContent = 'No desktops tracked yet.';
+          return;
+        }
+
+        const frag = document.createDocumentFragment();
+        for (const desktop of desktops) {
+          const row = document.createElement('div');
+          row.className = 'mapping-row';
+
+          const lbl = document.createElement('span');
+          lbl.className = 'mapping-label';
+          lbl.textContent = desktop;
+
+          const sel = document.createElement('select');
+          sel.className = 'mapping-select';
+          sel.dataset.desktop = desktop;
+
+          const skip = document.createElement('option');
+          skip.value = '';
+          skip.textContent = '— skip —';
+          sel.appendChild(skip);
+
+          for (const proj of bhProjects) {
+            const opt = document.createElement('option');
+            opt.value = String(proj.id);
+            opt.textContent = proj.name;
+            if (String(bhMappings[desktop]) === String(proj.id)) opt.selected = true;
+            sel.appendChild(opt);
+          }
+
+          row.appendChild(lbl);
+          row.appendChild(sel);
+          frag.appendChild(row);
+        }
+        rows.appendChild(frag);
+
+        if (bhProjects.length > 0) {
+          document.getElementById('mapping-section').style.display = '';
+        }
+      }
+
+      document.getElementById('bh-save-mappings').addEventListener('click', async () => {
+        const mappings = {};
+        for (const sel of document.querySelectorAll('.mapping-select')) {
+          mappings[sel.dataset.desktop] = sel.value || null;
+        }
+        bhMappings = mappings;
+
+        try {
+          const r = await fetch('/api/bamboohr/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mappings }),
+          });
+          bhMapStatus(r.ok ? 'Mappings saved.' : 'Failed to save mappings.',
+                      r.ok ? 'ok' : 'error');
+        } catch (e) {
+          bhMapStatus('Network error.', 'error');
+        }
+      });
+
+      // ── Sync button ─────────────────────────────────────────────────────
+      let bhConfig = null;
+
+      async function loadBhConfig() {
+        try {
+          bhConfig = await fetch('/api/bamboohr/config').then(r => r.json());
+        } catch (e) {
+          bhConfig = null;
+        }
+      }
+
+      function updateSyncUI(selectedDate) {
+        const btn       = document.getElementById('sync-btn');
+        const statusEl  = document.getElementById('sync-status');
+        const configured = bhConfig &&
+                           bhConfig.company_domain &&
+                           bhConfig.api_key === '****';
+
+        btn.style.display = configured ? '' : 'none';
+        if (!configured) { statusEl.textContent = ''; return; }
+
+        const info = (bhConfig.synced_dates || {})[selectedDate];
+        if (info) {
+          const ts      = new Date(info.timestamp);
+          const timeStr = ts.toLocaleTimeString(undefined,
+                          { hour: 'numeric', minute: '2-digit' });
+          const label   = info.status === 'partial' ? '⚠ Partial' : '✓ Synced';
+          statusEl.textContent = `${label} at ${timeStr}`;
+          statusEl.className   = `sync-status ${info.status === 'ok' ? 'ok' : 'partial'}`;
+        } else {
+          statusEl.textContent = 'Not synced';
+          statusEl.className   = 'sync-status';
+        }
+      }
+
+      document.getElementById('sync-btn').addEventListener('click', async () => {
+        const date = document.getElementById('date-picker').value;
+        if (!date) return;
+
+        // Warn about unmapped desktops before syncing.
+        const dayData  = globalData[date] || {};
+        const mappings = bhConfig?.mappings || {};
+        const unmapped = Object.keys(dayData)
+          .filter(d => dayData[d] > 0 && !mappings[d]);
+
+        if (unmapped.length > 0) {
+          const proceed = confirm(
+            `These desktops have no BambooHR project mapped and will be skipped:\n\n` +
+            unmapped.map(d => `  • ${d}`).join('\n') +
+            `\n\nProceed with sync?`
+          );
+          if (!proceed) return;
+        }
+
+        const btn      = document.getElementById('sync-btn');
+        const statusEl = document.getElementById('sync-status');
+        btn.disabled        = true;
+        btn.textContent     = 'Syncing…';
+        statusEl.textContent = '';
+        statusEl.className  = 'sync-status';
+
+        try {
+          const r      = await fetch('/api/bamboohr/sync', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ date }),
+          });
+          const result = await r.json();
+
+          if (r.ok) {
+            await loadBhConfig();
+            updateSyncUI(date);
+            const n   = result.synced?.length  || 0;
+            const sk  = result.skipped?.length || 0;
+            const err = result.errors?.length  || 0;
+            let msg = `✓ ${n} entr${n !== 1 ? 'ies' : 'y'} synced`;
+            if (sk)  msg += ` · ${sk} skipped`;
+            if (err) msg += ` · ${err} failed`;
+            statusEl.textContent = msg;
+            statusEl.className   = err ? 'sync-status partial' : 'sync-status ok';
+          } else {
+            statusEl.textContent = `✗ ${result.error || 'Sync failed'}`;
+            statusEl.className   = 'sync-status err';
+          }
+        } catch (e) {
+          statusEl.textContent = '✗ Network error';
+          statusEl.className   = 'sync-status err';
+        } finally {
+          btn.disabled    = false;
+          btn.textContent = 'Sync to BambooHR';
+        }
+      });
+
+      // Reload config when settings are saved so sync button appears immediately.
+      document.getElementById('bh-save-creds').addEventListener('click',
+        () => loadBhConfig(), { capture: true }
+      );
+
+      function bhStatus(msg, type) {
+        const el = document.getElementById('bh-status');
+        el.textContent = msg;
+        el.className = `settings-status status-${type}`;
+      }
+
+      function bhMapStatus(msg, type) {
+        const el = document.getElementById('bh-map-status');
+        el.textContent = msg;
+        el.className = `settings-status status-${type}`;
+      }
     </script>
 
     <footer class="page-footer">
