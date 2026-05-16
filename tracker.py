@@ -60,13 +60,13 @@ def get_idle_time():
 
 def is_computer_locked():
     user32 = ctypes.windll.User32
-    DESKTOP_SWITCHDESKTOP = 0x0100
-    hDesktop = user32.OpenDesktopW("default", 0, False, DESKTOP_SWITCHDESKTOP)
-    if hDesktop:
-        result = user32.SwitchDesktop(hDesktop)
+    hDesktop = user32.OpenDesktopW("default", 0, False, 0x0100)
+    if not hDesktop:
+        return True
+    try:
+        return not user32.SwitchDesktop(hDesktop)
+    finally:
         user32.CloseDesktop(hDesktop)
-        return not result
-    return True
 
 # --- Data Management ---
 def load_data():
