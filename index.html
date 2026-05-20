@@ -175,6 +175,48 @@
         vertical-align: middle;
       }
       .no-data { color: var(--muted); font-size: 0.88em; padding: 4px 0; }
+
+      /* Desktop filter dropdown */
+      .filter-wrap { position: relative; display: inline-block; }
+      .filter-btn {
+        padding: 7px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--card-bg);
+        color: var(--text);
+        font-size: 0.88em;
+        cursor: pointer;
+        white-space: nowrap;
+        user-select: none;
+      }
+      .filter-btn:hover  { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+      .filter-btn.active { border-color: #3b82f6; color: #3b82f6; }
+      .filter-panel {
+        display: none;
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        min-width: 180px;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px var(--shadow);
+        z-index: 200;
+        padding: 6px 0;
+      }
+      .filter-panel.open { display: block; }
+      .filter-opt {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        font-size: 0.84em;
+        cursor: pointer;
+        user-select: none;
+      }
+      .filter-opt:hover { background: var(--bar-bg); }
+      .filter-opt input { cursor: pointer; accent-color: #3b82f6; }
+      .filter-hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
     </style>
   </head>
   <body>
@@ -191,6 +233,17 @@
       </div>
       <div class="controls">
         <input type="date" id="date-picker" />
+        <div class="filter-wrap" id="filter-wrap">
+          <button class="filter-btn" id="filter-btn">All Desktops ▾</button>
+          <div class="filter-panel" id="filter-panel">
+            <label class="filter-opt">
+              <input type="checkbox" id="filter-all" checked />
+              <strong>All Desktops</strong>
+            </label>
+            <hr class="filter-hr" />
+            <div id="filter-options"></div>
+          </div>
+        </div>
         <button id="export-btn">Export CSV</button>
       </div>
     </div>
@@ -478,14 +531,14 @@
 
       function trackedCount(days) {
         return days.filter(d => {
-          const vals = Object.values(globalData[d] || {});
+          const vals = Object.values(applyFilter(globalData[d] || {}));
           return vals.length > 0 && vals.reduce((s,x) => s+x, 0) > 0;
         }).length;
       }
 
       // ── Render: Day ───────────────────────────────────────────────────
       function renderDay(sel) {
-        const data  = globalData[sel] || {};
+        const data  = applyFilter(globalData[sel] || {});
         const total = Object.values(data).reduce((s,v) => s+v, 0);
 
         document.getElementById('day-sublabel').textContent = fmtDate(sel);
@@ -516,7 +569,7 @@
         const days    = getWeekDays(sel);
         const aggData = {};
         for (const d of days)
-          for (const [k, v] of Object.entries(globalData[d] || {}))
+          for (const [k, v] of Object.entries(applyFilter(globalData[d] || {})))
             aggData[k] = (aggData[k] || 0) + v;
 
         const total   = Object.values(aggData).reduce((s,v) => s+v, 0);
@@ -551,7 +604,7 @@
         const LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
         renderBarChart(
           document.getElementById('week-chart'),
-          days.map((d, i) => ({ label: LABELS[i], totals: globalData[d] || {}, isSelected: d === sel })),
+          days.map((d, i) => ({ label: LABELS[i], totals: applyFilter(globalData[d] || {}), isSelected: d === sel })),
           false
         );
       }
@@ -562,7 +615,7 @@
         const days   = getMonthDays(sel);
         const aggData = {};
         for (const d of days)
-          for (const [k, v] of Object.entries(globalData[d] || {}))
+          for (const [k, v] of Object.entries(applyFilter(globalData[d] || {})))
             aggData[k] = (aggData[k] || 0) + v;
 
         const total     = Object.values(aggData).reduce((s,v) => s+v, 0);
@@ -599,7 +652,7 @@
           document.getElementById('month-chart'),
           days.map(d => ({
             label: String(parseInt(d.split('-')[2])),
-            totals: globalData[d] || {},
+            totals: applyFilter(globalData[d] || {}),
             isSelected: d === sel
           })),
           true
@@ -632,6 +685,95 @@
         }
         renderAll();
       }
+
+      // ── Desktop filter ────────────────────────────────────────────────
+      let activeFilter = new Set(); // empty = show all desktops
+
+      function applyFilter(map) {
+        if (activeFilter.size === 0) return map;
+        return Object.fromEntries(
+          Object.entries(map).filter(([k]) => activeFilter.has(k))
+        );
+      }
+
+      function allDesktops() {
+        return [...new Set(
+          Object.values(globalData).flatMap(d => Object.keys(d))
+        )].sort();
+      }
+
+      function buildFilterOptions() {
+        const desktops = allDesktops();
+        const showAll  = activeFilter.size === 0;
+        const allCb    = document.getElementById('filter-all');
+        allCb.checked       = showAll;
+        allCb.indeterminate = !showAll && activeFilter.size < desktops.length;
+
+        const container = document.getElementById('filter-options');
+        container.innerHTML = '';
+        for (const desktop of desktops) {
+          const lbl = document.createElement('label');
+          lbl.className = 'filter-opt';
+          const cb = document.createElement('input');
+          cb.type    = 'checkbox';
+          cb.value   = desktop;
+          cb.checked = showAll || activeFilter.has(desktop);
+          cb.addEventListener('change', onFilterChange);
+          lbl.appendChild(cb);
+          lbl.appendChild(document.createTextNode(desktop));
+          container.appendChild(lbl);
+        }
+      }
+
+      function onFilterChange() {
+        const cbs     = [...document.querySelectorAll('#filter-options input')];
+        const checked = cbs.filter(c => c.checked).map(c => c.value);
+        activeFilter  = checked.length === cbs.length ? new Set() : new Set(checked);
+        const allCb   = document.getElementById('filter-all');
+        allCb.checked       = activeFilter.size === 0;
+        allCb.indeterminate = activeFilter.size > 0 && activeFilter.size < cbs.length;
+        updateFilterBtn();
+        renderAll();
+      }
+
+      document.getElementById('filter-all').addEventListener('change', function () {
+        // "All" toggled — if it was indeterminate or unchecked, restore to all-selected
+        activeFilter = new Set();
+        this.checked       = true;
+        this.indeterminate = false;
+        for (const cb of document.querySelectorAll('#filter-options input'))
+          cb.checked = true;
+        updateFilterBtn();
+        renderAll();
+      });
+
+      function updateFilterBtn() {
+        const btn      = document.getElementById('filter-btn');
+        const desktops = allDesktops();
+        if (activeFilter.size === 0) {
+          btn.textContent = 'All Desktops ▾';
+          btn.classList.remove('active');
+        } else if (activeFilter.size === 1) {
+          btn.textContent = `${[...activeFilter][0]} ▾`;
+          btn.classList.add('active');
+        } else {
+          btn.textContent = `${activeFilter.size} of ${desktops.length} ▾`;
+          btn.classList.add('active');
+        }
+      }
+
+      document.getElementById('filter-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        const panel = document.getElementById('filter-panel');
+        const opening = !panel.classList.contains('open');
+        panel.classList.toggle('open');
+        if (opening) buildFilterOptions();
+      });
+
+      document.addEventListener('click', e => {
+        if (!document.getElementById('filter-wrap').contains(e.target))
+          document.getElementById('filter-panel').classList.remove('open');
+      });
 
       // ── CSV export ────────────────────────────────────────────────────
       function csvEscape(v) {
