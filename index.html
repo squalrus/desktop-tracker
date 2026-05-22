@@ -141,7 +141,8 @@
         line-height: 1.1;
         margin-bottom: 6px;
       }
-      .card-meta { font-size: 0.74em; color: var(--muted); margin-bottom: 9px; }
+      .card-meta-group { margin-bottom: 9px; }
+      .card-meta { font-size: 0.74em; color: var(--muted); line-height: 1.6; }
       .bar-track {
         background: var(--bar-bg);
         border-radius: 3px;
@@ -350,10 +351,16 @@
         card.appendChild(name);
         card.appendChild(time);
         if (metaText) {
-          const meta = document.createElement('div');
-          meta.className = 'card-meta';
-          meta.textContent = metaText;
-          card.appendChild(meta);
+          const lines = Array.isArray(metaText) ? metaText : [metaText];
+          const group = document.createElement('div');
+          group.className = 'card-meta-group';
+          for (const line of lines) {
+            const meta = document.createElement('div');
+            meta.className = 'card-meta';
+            meta.textContent = line;
+            group.appendChild(meta);
+          }
+          card.appendChild(group);
         }
         card.appendChild(track);
         card.appendChild(p);
@@ -620,6 +627,22 @@
 
         const total     = Object.values(aggData).reduce((s,v) => s+v, 0);
         const tracked   = trackedCount(days);
+
+        // Count distinct Mon–Sun weeks that had any tracked data in this month.
+        const trackedWeeks = (() => {
+          const weeks = new Set();
+          for (const d of days) {
+            const vals = Object.values(applyFilter(globalData[d] || {}));
+            if (vals.reduce((s, x) => s + x, 0) > 0) {
+              const dt  = new Date(d + 'T00:00:00');
+              const mon = new Date(dt);
+              mon.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+              weeks.add(mon.toISOString().slice(0, 10));
+            }
+          }
+          return weeks.size;
+        })();
+
         const monthName = new Date(y, m - 1, 1)
           .toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
@@ -642,7 +665,11 @@
         const frag = document.createDocumentFragment();
         for (const [desktop, secs] of Object.entries(aggData).sort(([a],[b]) => a.localeCompare(b))) {
           const meta = tracked > 1
-            ? `avg/day ${formatTime(Math.round(secs / tracked))} · ${tracked} days tracked`
+            ? [
+                `avg/day ${formatTime(Math.round(secs / tracked))}`,
+                ...(trackedWeeks > 1 ? [`avg/week ${formatTime(Math.round(secs / trackedWeeks))}`] : []),
+                `${tracked} days`,
+              ]
             : null;
           frag.appendChild(makeCard(desktop, secs, total, meta));
         }
