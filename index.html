@@ -157,6 +157,14 @@
         transition: width 0.4s;
       }
       .card-pct { font-size: 0.72em; color: var(--muted); text-align: right; }
+      .bar-fill.over { background: #10b981; }
+
+      /* Per-desktop target rows in settings panel */
+      .target-desktop-rows { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+      .target-desktop-row  { display: flex; align-items: center; gap: 8px; }
+      .target-desktop-label { font-size: 0.84em; color: var(--text); width: 120px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .target-desktop-input { width: 64px; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 0.86em; text-align: right; }
+      .target-desktop-unit  { font-size: 0.82em; color: var(--muted); }
 
       /* Charts */
       .chart-wrap { margin-top: 4px; }
@@ -176,6 +184,52 @@
         vertical-align: middle;
       }
       .no-data { color: var(--muted); font-size: 0.88em; padding: 4px 0; }
+
+      /* Targets panel */
+      .targets-panel {
+        display: none;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 20px;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 3px var(--shadow);
+      }
+      .targets-panel.open { display: block; }
+      .targets-form { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
+      .targets-form label { font-size: 0.84em; color: var(--muted); white-space: nowrap; }
+      .targets-form input[type="number"] {
+        width: 64px; padding: 5px 8px; border-radius: 6px;
+        border: 1px solid var(--border); background: var(--bg);
+        color: var(--text); font-size: 0.86em; text-align: right;
+      }
+      .targets-form select {
+        padding: 5px 8px; border-radius: 6px;
+        border: 1px solid var(--border); background: var(--bg);
+        color: var(--text); font-size: 0.86em;
+      }
+      .targets-check { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.84em; color: var(--muted); }
+      .targets-check input { accent-color: #3b82f6; cursor: pointer; }
+      .targets-save-btn {
+        padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+        background: var(--card-bg); color: var(--text); font-size: 0.84em; cursor: pointer;
+      }
+      .targets-save-btn:hover { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
+      /* Target progress row */
+      .target-row { margin-bottom: 14px; }
+      .target-bar-wrap {
+        background: var(--bar-bg); border-radius: 4px;
+        height: 7px; overflow: hidden; margin-bottom: 5px;
+      }
+      .target-bar-fill {
+        height: 100%; background: #3b82f6;
+        border-radius: 4px; transition: width 0.4s;
+      }
+      .target-bar-fill.over { background: #10b981; }
+      .target-text  { font-size: 0.76em; color: var(--muted); }
+      .target-over  { color: #10b981; font-weight: 600; }
+      .target-weekend { font-size: 0.76em; color: var(--muted); font-style: italic; }
 
       /* Desktop filter dropdown */
       .filter-wrap { position: relative; display: inline-block; }
@@ -245,7 +299,29 @@
             <div id="filter-options"></div>
           </div>
         </div>
+        <button id="targets-btn">Targets</button>
         <button id="export-btn">Export CSV</button>
+      </div>
+    </div>
+
+    <!-- Targets panel -->
+    <div id="targets-panel" class="targets-panel">
+      <div class="targets-form">
+        <label>Hours per</label>
+        <select id="t-type">
+          <option value="day">Day</option>
+          <option value="week" selected>Week</option>
+          <option value="month">Month</option>
+        </select>
+        <label class="targets-check">
+          <input type="checkbox" id="t-weekends" />
+          Exclude weekends
+        </label>
+      </div>
+      <div id="t-desktop-rows" class="target-desktop-rows"></div>
+      <div class="targets-form" style="margin-top:12px">
+        <button id="targets-save" class="targets-save-btn">Save</button>
+        <span id="targets-saved" style="font-size:0.8em;color:#10b981;display:none">Saved ✓</span>
       </div>
     </div>
 
@@ -258,6 +334,7 @@
         </div>
         <span id="day-total" class="section-total"></span>
       </div>
+      <div id="day-target" class="target-row"></div>
       <div class="day-body">
         <div class="day-cards" id="day-cards"></div>
         <div id="day-donut"></div>
@@ -273,6 +350,7 @@
         </div>
         <span id="week-total" class="section-total"></span>
       </div>
+      <div id="week-target" class="target-row"></div>
       <div class="period-cards" id="week-cards"></div>
       <div class="chart-wrap" id="week-chart"></div>
     </div>
@@ -286,6 +364,7 @@
         </div>
         <span id="month-total" class="section-total"></span>
       </div>
+      <div id="month-target" class="target-row"></div>
       <div class="period-cards" id="month-cards"></div>
       <div class="chart-wrap" id="month-chart"></div>
     </div>
@@ -321,8 +400,7 @@
       }
 
       // ── Card ──────────────────────────────────────────────────────────
-      function makeCard(desktop, seconds, totalSeconds, metaText) {
-        const pct   = totalSeconds > 0 ? ((seconds / totalSeconds) * 100).toFixed(1) : '0.0';
+      function makeCard(desktop, seconds, totalSeconds, metaText, targetH) {
         const color = colorMap[desktop] || PALETTE[0];
 
         const card = document.createElement('div');
@@ -337,16 +415,29 @@
         time.className = 'card-time';
         time.textContent = formatTime(seconds);
 
+        // Bar: target-based when a target is set, otherwise % of period total
+        let barPct, pctLabel, fillOver = false;
+        if (targetH && targetH > 0) {
+          barPct   = Math.min(100, (seconds / (targetH * 3600)) * 100);
+          fillOver = seconds >= targetH * 3600;
+          pctLabel = fillOver
+            ? `✓ over ${fmtH(targetH)}`
+            : `${Math.round(barPct)}% of ${fmtH(targetH)}`;
+        } else {
+          barPct   = totalSeconds > 0 ? (seconds / totalSeconds) * 100 : 0;
+          pctLabel = barPct.toFixed(1) + '%';
+        }
+
         const track = document.createElement('div');
         track.className = 'bar-track';
         const fill = document.createElement('div');
-        fill.className = 'bar-fill';
-        fill.style.width = pct + '%';
+        fill.className = 'bar-fill' + (fillOver ? ' over' : '');
+        fill.style.width = barPct.toFixed(1) + '%';
         track.appendChild(fill);
 
         const p = document.createElement('div');
         p.className = 'card-pct';
-        p.textContent = pct + '%';
+        p.textContent = pctLabel;
 
         card.appendChild(name);
         card.appendChild(time);
@@ -430,7 +521,8 @@
 
       // ── Stacked bar chart ─────────────────────────────────────────────
       // days = [{ label, totals: {desktop: seconds}, isSelected? }]
-      function renderBarChart(container, days, compact) {
+      // targetSecsPerBar: optional daily target in seconds — draws a reference line
+      function renderBarChart(container, days, compact, targetSecsPerBar) {
         container.innerHTML = '';
         const allDesktops = [...new Set(days.flatMap(d => Object.keys(d.totals)))].sort();
         if (allDesktops.length === 0) return;
@@ -512,6 +604,23 @@
           svg.appendChild(t);
         }
 
+        // Target reference line
+        if (targetSecsPerBar > 0 && targetSecsPerBar < maxTotal) {
+          const ty = mt + plotH - (targetSecsPerBar / maxTotal) * plotH;
+          svg.appendChild(svgEl('line', {
+            x1: ml, y1: ty, x2: W - mr, y2: ty,
+            stroke: '#10b981', 'stroke-width': '1.5',
+            'stroke-dasharray': '4 3', opacity: '0.8'
+          }));
+          const dailyH = targetSecsPerBar / 3600;
+          const tLbl   = svgEl('text', {
+            x: W - mr - 2, y: ty - 3, 'text-anchor': 'end',
+            'font-size': '8', fill: '#10b981', 'font-family': 'Segoe UI,sans-serif'
+          });
+          tLbl.textContent = fmtH(dailyH);
+          svg.appendChild(tLbl);
+        }
+
         container.appendChild(svg);
       }
 
@@ -538,8 +647,9 @@
 
       function trackedCount(days) {
         return days.filter(d => {
+          if (targetConfig.excludeWeekends && isWeekend(d)) return false;
           const vals = Object.values(applyFilter(globalData[d] || {}));
-          return vals.length > 0 && vals.reduce((s,x) => s+x, 0) > 0;
+          return vals.reduce((s,x) => s+x, 0) > 0;
         }).length;
       }
 
@@ -555,6 +665,22 @@
         const el = document.getElementById('day-cards');
         el.innerHTML = '';
 
+        // Section header target — aggregate only desktops that have a target
+        const tEl = document.getElementById('day-target');
+        if (targetConfig.excludeWeekends && isWeekend(sel)) {
+          tEl.innerHTML = '<div class="target-weekend">Weekend</div>';
+        } else {
+          const dWithTgt = Object.keys(data).filter(d => (targetConfig.desktops?.[d] || 0) > 0);
+          if (dWithTgt.length > 0) {
+            renderTargetRow(tEl,
+              dWithTgt.reduce((s,d) => s + (data[d] || 0), 0),
+              dWithTgt.reduce((s,d) => s + getTargetH(1, d), 0)
+            );
+          } else {
+            tEl.innerHTML = '';
+          }
+        }
+
         if (total === 0) {
           const p = document.createElement('p');
           p.className = 'no-data';
@@ -566,18 +692,29 @@
 
         const frag = document.createDocumentFragment();
         for (const [desktop, secs] of Object.entries(data).sort(([a],[b]) => a.localeCompare(b)))
-          frag.appendChild(makeCard(desktop, secs, total, null));
+          frag.appendChild(makeCard(desktop, secs, total, null, getTargetH(1, desktop)));
         el.appendChild(frag);
         renderDonut(document.getElementById('day-donut'), data);
       }
 
       // ── Render: Week ──────────────────────────────────────────────────
       function renderWeek(sel) {
-        const days    = getWeekDays(sel);
+        const days = getWeekDays(sel);
+        const wpw  = targetConfig.excludeWeekends ? 5 : 7;
+
+        // Aggregate all days for display
         const aggData = {};
         for (const d of days)
           for (const [k, v] of Object.entries(applyFilter(globalData[d] || {})))
             aggData[k] = (aggData[k] || 0) + v;
+
+        // Aggregate working days only for target progress
+        const wdData = {};
+        for (const d of days) {
+          if (targetConfig.excludeWeekends && isWeekend(d)) continue;
+          for (const [k, v] of Object.entries(applyFilter(globalData[d] || {})))
+            wdData[k] = (wdData[k] || 0) + v;
+        }
 
         const total   = Object.values(aggData).reduce((s,v) => s+v, 0);
         const tracked = trackedCount(days);
@@ -586,6 +723,17 @@
           `${fmtDate(days[0])} – ${fmtDate(days[6])}`;
         document.getElementById('week-total').textContent =
           total > 0 ? `Total: ${formatTime(total)}` : '';
+
+        // Section header target aggregate
+        const dWithTgt = Object.keys(wdData).filter(d => (targetConfig.desktops?.[d] || 0) > 0);
+        if (dWithTgt.length > 0) {
+          renderTargetRow(document.getElementById('week-target'),
+            dWithTgt.reduce((s,d) => s + (wdData[d] || 0), 0),
+            dWithTgt.reduce((s,d) => s + getTargetH(wpw, d), 0)
+          );
+        } else {
+          document.getElementById('week-target').innerHTML = '';
+        }
 
         const el = document.getElementById('week-cards');
         el.innerHTML = '';
@@ -604,15 +752,19 @@
           const meta = tracked > 1
             ? `avg/day ${formatTime(Math.round(secs / tracked))} · ${tracked} days`
             : null;
-          frag.appendChild(makeCard(desktop, secs, total, meta));
+          frag.appendChild(makeCard(desktop, secs, total, meta, getTargetH(wpw, desktop)));
         }
         el.appendChild(frag);
 
-        const LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        // Bar chart: target line = sum of daily rates for visible desktops
+        const vis       = activeFilter.size > 0 ? [...activeFilter] : allDesktops();
+        const dailyTgtH = vis.reduce((s,d) => s + (getTargetH(1, d) || 0), 0);
+        const LABELS    = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
         renderBarChart(
           document.getElementById('week-chart'),
           days.map((d, i) => ({ label: LABELS[i], totals: applyFilter(globalData[d] || {}), isSelected: d === sel })),
-          false
+          false,
+          dailyTgtH > 0 ? dailyTgtH * 3600 : null
         );
       }
 
@@ -620,21 +772,37 @@
       function renderMonth(sel) {
         const [y, m] = sel.split('-').map(Number);
         const days   = getMonthDays(sel);
+
+        // Working days in this month
+        const workDaysInMonth = targetConfig.excludeWeekends
+          ? days.filter(d => !isWeekend(d)).length
+          : days.length;
+
+        // Aggregate all days for display
         const aggData = {};
         for (const d of days)
           for (const [k, v] of Object.entries(applyFilter(globalData[d] || {})))
             aggData[k] = (aggData[k] || 0) + v;
 
-        const total     = Object.values(aggData).reduce((s,v) => s+v, 0);
-        const tracked   = trackedCount(days);
+        // Aggregate working days only for target progress
+        const wdData = {};
+        for (const d of days) {
+          if (targetConfig.excludeWeekends && isWeekend(d)) continue;
+          for (const [k, v] of Object.entries(applyFilter(globalData[d] || {})))
+            wdData[k] = (wdData[k] || 0) + v;
+        }
 
-        // Count distinct Mon–Sun weeks that had any tracked data in this month.
+        const total   = Object.values(aggData).reduce((s,v) => s+v, 0);
+        const tracked = trackedCount(days);
+
+        // Tracked weeks (weekends excluded from consideration if setting on)
         const trackedWeeks = (() => {
           const weeks = new Set();
           for (const d of days) {
+            if (targetConfig.excludeWeekends && isWeekend(d)) continue;
             const vals = Object.values(applyFilter(globalData[d] || {}));
-            if (vals.reduce((s, x) => s + x, 0) > 0) {
-              const dt  = new Date(d + 'T00:00:00');
+            if (vals.reduce((s,x) => s+x, 0) > 0) {
+              const dt = new Date(d + 'T00:00:00');
               const mon = new Date(dt);
               mon.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
               weeks.add(mon.toISOString().slice(0, 10));
@@ -643,12 +811,21 @@
           return weeks.size;
         })();
 
-        const monthName = new Date(y, m - 1, 1)
-          .toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-
-        document.getElementById('month-sublabel').textContent = monthName;
+        document.getElementById('month-sublabel').textContent =
+          new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
         document.getElementById('month-total').textContent =
           total > 0 ? `Total: ${formatTime(total)}` : '';
+
+        // Section header target aggregate
+        const dWithTgt = Object.keys(wdData).filter(d => (targetConfig.desktops?.[d] || 0) > 0);
+        if (dWithTgt.length > 0) {
+          renderTargetRow(document.getElementById('month-target'),
+            dWithTgt.reduce((s,d) => s + (wdData[d] || 0), 0),
+            dWithTgt.reduce((s,d) => s + getTargetH(workDaysInMonth, d), 0)
+          );
+        } else {
+          document.getElementById('month-target').innerHTML = '';
+        }
 
         const el = document.getElementById('month-cards');
         el.innerHTML = '';
@@ -671,10 +848,13 @@
                 `${tracked} days`,
               ]
             : null;
-          frag.appendChild(makeCard(desktop, secs, total, meta));
+          frag.appendChild(makeCard(desktop, secs, total, meta, getTargetH(workDaysInMonth, desktop)));
         }
         el.appendChild(frag);
 
+        // Bar chart: target line = sum of daily rates for visible desktops
+        const vis       = activeFilter.size > 0 ? [...activeFilter] : allDesktops();
+        const dailyTgtH = vis.reduce((s,d) => s + (getTargetH(1, d) || 0), 0);
         renderBarChart(
           document.getElementById('month-chart'),
           days.map(d => ({
@@ -682,7 +862,8 @@
             totals: applyFilter(globalData[d] || {}),
             isSelected: d === sel
           })),
-          true
+          true,
+          dailyTgtH > 0 ? dailyTgtH * 3600 : null
         );
       }
 
@@ -711,6 +892,77 @@
           return;
         }
         renderAll();
+      }
+
+      // ── Targets ───────────────────────────────────────────────────────
+      let targetConfig = (() => {
+        try { return JSON.parse(localStorage.getItem('dt_target') || '{}'); }
+        catch { return {}; }
+      })();
+
+      function saveTargetConfig(c) {
+        targetConfig = c;
+        localStorage.setItem('dt_target', JSON.stringify(c));
+      }
+
+      function isWeekend(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00').getDay();
+        return d === 0 || d === 6;
+      }
+
+      // Extrapolate a per-desktop target to any period via a daily rate.
+      // desktop = name of the desktop; numWorkDays = working days in the period.
+      // Returns hours, or null if no target is set for that desktop.
+      function getTargetH(numWorkDays, desktop) {
+        const v = targetConfig.desktops?.[desktop];
+        const t = targetConfig.targetType;
+        if (!v || v <= 0 || !t) return null;
+        const wpw = targetConfig.excludeWeekends ? 5 : 7;
+        let daily;
+        if      (t === 'day')  daily = v;
+        else if (t === 'week') daily = v / wpw;
+        else                   daily = v / (52 * wpw / 12);
+        return daily * numWorkDays;
+      }
+
+      function fmtH(h) {
+        if (!h) return '';
+        const r = Math.round(h * 10) / 10;
+        return Number.isInteger(r) ? `${r}h` : `${r}h`;
+      }
+
+      function renderTargetRow(el, trackedSecs, targetH) {
+        el.innerHTML = '';
+        if (!targetH || targetH <= 0) return;
+        const targetSecs = targetH * 3600;
+        const pct  = Math.min(100, (trackedSecs / targetSecs) * 100);
+        const over = trackedSecs >= targetSecs;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'target-bar-wrap';
+        const fill = document.createElement('div');
+        fill.className = 'target-bar-fill' + (over ? ' over' : '');
+        fill.style.width = pct.toFixed(1) + '%';
+        wrap.appendChild(fill);
+
+        const txt = document.createElement('div');
+        txt.className = 'target-text';
+        if (over) {
+          const span = document.createElement('span');
+          span.className = 'target-over';
+          span.textContent = `✓ ${formatTime(Math.round(trackedSecs))}`;
+          txt.appendChild(span);
+          txt.appendChild(document.createTextNode(
+            ` — ${formatTime(Math.round(trackedSecs - targetSecs))} over ${fmtH(targetH)} target`
+          ));
+        } else {
+          txt.textContent =
+            `${formatTime(Math.round(trackedSecs))} of ${fmtH(targetH)} target` +
+            ` · ${Math.round(pct)}%` +
+            ` · ${formatTime(Math.round(targetSecs - trackedSecs))} to go`;
+        }
+        el.appendChild(wrap);
+        el.appendChild(txt);
       }
 
       // ── Desktop filter ────────────────────────────────────────────────
@@ -800,6 +1052,68 @@
       document.addEventListener('click', e => {
         if (!document.getElementById('filter-wrap').contains(e.target))
           document.getElementById('filter-panel').classList.remove('open');
+      });
+
+      // ── Targets panel ────────────────────────────────────────────────
+      function buildTargetDesktopRows() {
+        const desktops  = allDesktops();
+        const container = document.getElementById('t-desktop-rows');
+        container.innerHTML = '';
+        if (desktops.length === 0) {
+          const msg = document.createElement('p');
+          msg.className = 'no-data';
+          msg.textContent = 'No desktops tracked yet.';
+          container.appendChild(msg);
+          return;
+        }
+        const frag = document.createDocumentFragment();
+        for (const desktop of desktops) {
+          const row = document.createElement('div');
+          row.className = 'target-desktop-row';
+          const lbl = document.createElement('span');
+          lbl.className = 'target-desktop-label';
+          lbl.textContent = desktop;
+          const inp = document.createElement('input');
+          inp.type = 'number'; inp.min = '0'; inp.step = '0.5';
+          inp.placeholder = '—'; inp.className = 'target-desktop-input';
+          inp.dataset.desktop = desktop;
+          const v = targetConfig.desktops?.[desktop];
+          inp.value = (v && v > 0) ? v : '';
+          const unit = document.createElement('span');
+          unit.className = 'target-desktop-unit';
+          unit.textContent = 'h';
+          row.appendChild(lbl); row.appendChild(inp); row.appendChild(unit);
+          frag.appendChild(row);
+        }
+        container.appendChild(frag);
+      }
+
+      document.getElementById('targets-btn').addEventListener('click', () => {
+        const panel   = document.getElementById('targets-panel');
+        const opening = !panel.classList.contains('open');
+        panel.classList.toggle('open');
+        if (opening) {
+          document.getElementById('t-type').value       = targetConfig.targetType  || 'week';
+          document.getElementById('t-weekends').checked = !!targetConfig.excludeWeekends;
+          buildTargetDesktopRows();
+        }
+      });
+
+      document.getElementById('targets-save').addEventListener('click', () => {
+        const desktops = {};
+        for (const inp of document.querySelectorAll('.target-desktop-input')) {
+          const v = parseFloat(inp.value);
+          desktops[inp.dataset.desktop] = (!isNaN(v) && v > 0) ? v : null;
+        }
+        saveTargetConfig({
+          targetType:      document.getElementById('t-type').value,
+          excludeWeekends: document.getElementById('t-weekends').checked,
+          desktops,
+        });
+        const saved = document.getElementById('targets-saved');
+        saved.style.display = 'inline';
+        setTimeout(() => { saved.style.display = 'none'; }, 1500);
+        renderAll();
       });
 
       // ── CSV export ────────────────────────────────────────────────────

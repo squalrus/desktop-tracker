@@ -15,6 +15,7 @@ This is perfect for freelancers, remote workers, or anyone looking to separate t
 - **Historical Data & CSV Export:** Use the built-in calendar to view previous days' usage. Export your entire history to a `.csv` file with a single click for invoicing or personal analytics.
 - **Day, Week & Month Views:** The dashboard shows a breakdown for the selected day, the surrounding Monday–Sunday week, and the full calendar month. Month cards include avg/day and avg/week. A desktop filter lets you focus on one or more desktops across all three views simultaneously.
 - **Charts:** A donut chart visualises the day's desktop split. Stacked bar charts for the week and month show how time was distributed across each day at a glance.
+- **Hour Targets:** Set a per-desktop hour target (daily, weekly, or monthly). The other periods extrapolate automatically. Progress bars appear on every card and in each section header. Optionally exclude weekends from calculations and averages.
 - **Privacy First:** All data is stored locally in a simple `desktop_data.json` file. No cloud syncing, no accounts.
 - **Real-time Dashboard:** A local web interface that updates automatically every 10 seconds, featuring alphabetically ordered desktop cards with visual percentage bars and precise time readouts (e.g., `2h 15m 30s`).
 - **Automatic Dark Mode:** The dashboard instantly matches your system or browser's Light/Dark mode preference.
