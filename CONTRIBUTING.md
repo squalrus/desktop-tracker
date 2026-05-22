@@ -23,23 +23,27 @@ This document covers the technical architecture, local development setup, and bu
 
 ## Key Implementation Details
 
-**Tracker core**
+### Tracker core
+
 - The HTTP server binds to `127.0.0.1` only (not `0.0.0.0`) to avoid Windows Firewall prompts.
 - Idle detection uses the Win32 `GetLastInputInfo` API via `ctypes`. `GetTickCount64` (64-bit) is used to avoid a 32-bit overflow after ~49 days of uptime.
 - Lock detection uses `OpenDesktop`/`SwitchDesktop`; the desktop handle is released in a `finally` block to prevent leaks.
 - A named Windows mutex (`DesktopTrackerMutex`) prevents two instances from running simultaneously — a second launch opens the existing dashboard instead.
 - `tracking_data` is held in memory and written to `desktop_data.json` every 5 seconds. A final flush is performed before the process exits.
 
-**HTTP routing**
+### HTTP routing
+
 - `QuietHandler` extends `SimpleHTTPRequestHandler`. Requests to `/api/*` are intercepted and dispatched to handler methods; everything else falls through to static file serving.
 - All logs are suppressed — `pythonw.exe` crashes if it tries to print to a missing console.
 
-**BambooHR proxy**
+### BambooHR proxy
+
 - All BambooHR API calls are made server-side to avoid CORS restrictions. The API key is stored in `bamboohr_config.json` and never sent to the browser; the config endpoint masks it as `****`.
 - The employee ID is resolved automatically from the API key on the first sync via `GET /v1/employees/0?fields=id`.
 - Re-syncing a day deletes the previous BambooHR entries (stored by ID in `bamboohr_config.json`) before creating new ones.
 
-**Dashboard**
+### Dashboard
+
 - Desktop colours are assigned alphabetically once per render cycle so each desktop maps to the same colour across all three sections.
 - The desktop filter (`activeFilter` Set) is applied at the data level before any aggregation, so charts, cards, totals, and target progress all reflect the filtered view consistently.
 - Hour targets are stored in `localStorage` under the key `dt_target`. Target type, exclude-weekends, and per-desktop values all live in one object.
@@ -83,7 +87,7 @@ The job requires `permissions: contents: write` to allow release creation via `G
 ## Future Considerations
 
 - **macOS port** — macOS has Spaces (equivalent to Windows Virtual Desktops) but no public API for detecting the current Space. See [MACOS.md](MACOS.md) for research notes and alternative approaches including app-context mapping and window probe strategies.
-- **BambooHR auto-sync** — a background thread to sync the previous day automatically each morning. Config fields (`auto_sync`, `auto_sync_hour`) are already stored in `bamboohr_config.json`. See the deferred items section in [MACOS.md](MACOS.md) for context.
+- **BambooHR auto-sync** — a background thread to sync the previous day automatically each morning. Config fields (`auto_sync`, `auto_sync_hour`) are already stored in `bamboohr_config.json`. See [BAMBOOHR.md](BAMBOOHR.md) for the full design and deferred-feature notes.
 - **BambooHR bulk sync** — sync all unsynced days in one action rather than one day at a time.
 - **Minimum tracked time threshold** — configurable option to skip desktop entries under a set number of minutes per day.
 
