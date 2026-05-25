@@ -250,12 +250,25 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         cfg     = load_bamboohr_config()
         domain  = cfg.get("company_domain", "").strip()
         api_key = cfg.get("api_key", "").strip()
+        emp_id  = cfg.get("employee_id", "").strip()
 
         if not domain or not api_key:
             self._send_json(400, {"error": "BambooHR company domain and API key must be configured."})
             return
 
-        status, data = bamboohr_request(domain, api_key, "GET", "timetracking/projects")
+        if not emp_id:
+            status, resp = bamboohr_request(domain, api_key, "GET",
+                                            "employees/0?fields=id")
+            if status != 200:
+                self._send_json(status, {"error": "Could not resolve employee ID.",
+                                         "detail": resp})
+                return
+            emp_id = str(resp.get("id", ""))
+            cfg["employee_id"] = emp_id
+            save_bamboohr_config(cfg)
+
+        status, data = bamboohr_request(domain, api_key, "GET",
+                                        f"time_tracking/employees/{emp_id}/projects")
         self._send_json(status, data)
 
     def _post_sync(self):
@@ -301,15 +314,15 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 
         # Delete previously synced entries so re-sync doesn't double-count.
         prev = cfg.get("synced_dates", {}).get(date_str, {})
-        for entry_id in prev.get("entry_ids", []):
-            bamboohr_request(domain, api_key, "DELETE",
-                             f"timetracking/employees/{emp_id}/entries/{entry_id}")
+        prev_ids = [int(i) for i in prev.get("entry_ids", []) if i is not None]
+        if prev_ids:
+            bamboohr_request(domain, api_key, "POST",
+                             "time_tracking/hour_entries/delete",
+                             body={"hourEntryIds": prev_ids})
 
-        # Build and POST one entry per mapped desktop.
-        synced  = []
+        # Build the bulk entry list from mapped desktops; track skipped.
+        entries = []
         skipped = []
-        errors  = []
-
         for desktop, seconds in day_data.items():
             project_id = mappings.get(desktop)
             if not project_id:
@@ -321,25 +334,41 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
                 skipped.append(desktop)
                 continue
 
+            entries.append({
+                "desktop": desktop,
+                "hours":   hours,
+                "body": {
+                    "employeeId": int(emp_id),
+                    "date":       date_str,
+                    "hours":      hours,
+                    "projectId":  int(project_id),
+                    "note":       "Tracked by Desktop Tracker",
+                },
+            })
+
+        synced = []
+        errors = []
+
+        if entries:
             status, resp = bamboohr_request(
                 domain, api_key, "POST",
-                f"timetracking/employees/{emp_id}/entries",
-                body={
-                    "date":          date_str,
-                    "trackingHours": hours,
-                    "projectId":     project_id,
-                    "note":          "Tracked by Desktop Tracker",
-                },
+                "time_tracking/hour_entries/store",
+                body={"hours": [e["body"] for e in entries]},
             )
 
-            if status in (200, 201):
-                synced.append({"desktop": desktop, "hours": hours,
-                               "id": resp.get("id")})
+            if status in (200, 201) and isinstance(resp, list):
+                # Response is an array of created entries in input order.
+                for entry, created in zip(entries, resp):
+                    synced.append({"desktop": entry["desktop"],
+                                   "hours":   entry["hours"],
+                                   "id":      created.get("id")})
             else:
-                errors.append({"desktop": desktop, "error": resp})
+                for entry in entries:
+                    errors.append({"desktop": entry["desktop"], "error": resp})
 
         if errors and not synced:
-            self._send_json(502, {"error": "All entries failed.", "errors": errors})
+            self._send_json(502, {"error": "Sync failed.",
+                                  "errors": errors, "skipped": skipped})
             return
 
         # Persist sync metadata for re-sync and status display.

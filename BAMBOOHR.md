@@ -98,25 +98,28 @@ desktop_data.json
 [ Apply mappings ]     ──→  {PROJECT_ID_A: 4.0h, PROJECT_ID_B: 2.0h}  (Personal skipped)
        │
        ▼
-[ Delete old entries ] ──→  DELETE /timetracking/employees/{id}/entries/{entryId}  (if re-sync)
+[ Delete old entries ] ──→  POST /v1/time_tracking/hour_entries/delete  {hourEntryIds: [...]}  (if re-sync)
        │
        ▼
-[ POST to BambooHR ]   ──→  one time entry per mapped desktop
+[ POST to BambooHR ]   ──→  POST /v1/time_tracking/hour_entries/store  {hours: [...]}  (one bulk call)
        │
        ▼
-[ Write synced_dates ] ──→  store entry IDs + timestamp in bamboohr_config.json
+[ Write synced_dates ] ──→  store entry IDs (from response, in input order) + timestamp in bamboohr_config.json
 ```
 
-Each synced desktop produces one BambooHR time entry:
+Each mapped desktop becomes one entry inside the bulk `hours` array:
 
 ```json
 {
-  "date":          "2026-05-02",
-  "trackingHours": 4.0,
-  "projectId":     "PROJECT_ID_A",
-  "note":          "Tracked by Desktop Tracker"
+  "employeeId": 42,
+  "date":       "2026-05-02",
+  "hours":      4.0,
+  "projectId":  101,
+  "note":       "Tracked by Desktop Tracker"
 }
 ```
+
+The store endpoint returns a 201 with an array of created entries in the same order as the request; entry IDs are pulled from that array and stored in `synced_dates` for later deletion on re-sync. The delete endpoint is idempotent — re-sending IDs that were already removed does not error.
 
 ---
 
