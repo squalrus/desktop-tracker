@@ -39,13 +39,13 @@ The dashboard has three sections — **Day**, **Week**, and **Month** — all dr
 - Use the **date picker** to navigate to any past day
 - Use the **desktop filter** to focus on one or more desktops across all three views
 - Each section shows a total, a daily average, and a breakdown per desktop
-- **Export CSV** downloads your full history as a spreadsheet
+- Click the **⚙ gear icon** to open the settings panel — hour targets, CSV export, and BambooHR integration all live here
 
 ---
 
 ## 🎯 Hour Targets
 
-Click **Targets** in the header to set per-desktop hour goals.
+Click the **⚙** gear icon in the top-right and find the **Hour Targets** section.
 
 1. Choose a period — **Day**, **Week**, or **Month**. The other two extrapolate automatically using a shared daily rate.
 2. Enter a target value next to each desktop you want to track (leave blank to skip that desktop).

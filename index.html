@@ -160,9 +160,9 @@
       .bar-fill.over { background: #10b981; }
 
       /* Per-desktop target rows in settings panel */
-      .target-desktop-rows { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-      .target-desktop-row  { display: flex; align-items: center; gap: 8px; }
-      .target-desktop-label { font-size: 0.84em; color: var(--text); width: 120px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .target-desktop-rows { margin-top: 4px; display: flex; flex-direction: column; gap: 6px; }
+      .target-desktop-row  { display: flex; align-items: center; gap: 12px; }
+      .target-desktop-label { font-size: 0.84em; color: var(--text); width: 130px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .target-desktop-input { width: 64px; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 0.86em; text-align: right; }
       .target-desktop-unit  { font-size: 0.82em; color: var(--muted); }
 
@@ -184,37 +184,6 @@
         vertical-align: middle;
       }
       .no-data { color: var(--muted); font-size: 0.88em; padding: 4px 0; }
-
-      /* Targets panel */
-      .targets-panel {
-        display: none;
-        background: var(--card-bg);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 14px 20px;
-        margin-bottom: 24px;
-        box-shadow: 0 1px 3px var(--shadow);
-      }
-      .targets-panel.open { display: block; }
-      .targets-form { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
-      .targets-form label { font-size: 0.84em; color: var(--muted); white-space: nowrap; }
-      .targets-form input[type="number"] {
-        width: 64px; padding: 5px 8px; border-radius: 6px;
-        border: 1px solid var(--border); background: var(--bg);
-        color: var(--text); font-size: 0.86em; text-align: right;
-      }
-      .targets-form select {
-        padding: 5px 8px; border-radius: 6px;
-        border: 1px solid var(--border); background: var(--bg);
-        color: var(--text); font-size: 0.86em;
-      }
-      .targets-check { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.84em; color: var(--muted); }
-      .targets-check input { accent-color: #3b82f6; cursor: pointer; }
-      .targets-save-btn {
-        padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
-        background: var(--card-bg); color: var(--text); font-size: 0.84em; cursor: pointer;
-      }
-      .targets-save-btn:hover { background: #3b82f6; color: #fff; border-color: #3b82f6; }
 
       /* Target progress row */
       .target-row { margin-bottom: 14px; }
@@ -295,11 +264,10 @@
         margin-bottom: 32px;
         box-shadow: 0 2px 8px var(--shadow);
       }
-      .settings-panel.open { display: block; }
-      .settings-section + .settings-section {
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid var(--border);
+      .settings-panel.open {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+        gap: 24px 36px;
       }
       .settings-section h3 {
         margin: 0 0 14px;
@@ -310,13 +278,24 @@
         color: var(--muted);
       }
       .settings-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-      .settings-row label { width: 130px; font-size: 0.84em; color: var(--muted); flex-shrink: 0; }
+      .settings-row > label:first-child { width: 130px; font-size: 0.84em; color: var(--muted); flex-shrink: 0; }
       .settings-row input[type="text"],
       .settings-row input[type="password"] {
         flex: 1; max-width: 300px; padding: 6px 10px; border-radius: 6px;
         border: 1px solid var(--border); background: var(--bg);
         color: var(--text); font-size: 0.86em;
       }
+      .settings-row select {
+        padding: 6px 10px; border-radius: 6px;
+        border: 1px solid var(--border); background: var(--bg);
+        color: var(--text); font-size: 0.86em;
+      }
+      .settings-row.settings-row-flush { padding-left: 142px; }
+      .settings-row > label.settings-check {
+        display: flex; align-items: center; gap: 8px;
+        font-size: 0.86em; color: var(--text); cursor: pointer; width: auto;
+      }
+      .settings-check input { accent-color: #3b82f6; cursor: pointer; }
       .input-with-toggle { display: flex; gap: 6px; flex: 1; max-width: 300px; }
       .input-with-toggle input { max-width: unset; flex: 1; }
       .settings-actions {
@@ -388,35 +367,41 @@
             <div id="filter-options"></div>
           </div>
         </div>
-        <button id="targets-btn">Targets</button>
-        <button id="export-btn">Export CSV</button>
-        <button id="settings-btn" class="icon-btn" title="BambooHR Settings">⚙</button>
+        <button id="settings-btn" class="icon-btn" title="Settings">⚙</button>
       </div>
     </div>
 
-    <!-- Targets panel -->
-    <div id="targets-panel" class="targets-panel">
-      <div class="targets-form">
-        <label>Hours per</label>
-        <select id="t-type">
-          <option value="day">Day</option>
-          <option value="week" selected>Week</option>
-          <option value="month">Month</option>
-        </select>
-        <label class="targets-check">
-          <input type="checkbox" id="t-weekends" />
-          Exclude weekends
-        </label>
-      </div>
-      <div id="t-desktop-rows" class="target-desktop-rows"></div>
-      <div class="targets-form" style="margin-top:12px">
-        <button id="targets-save" class="targets-save-btn">Save</button>
-        <span id="targets-saved" style="font-size:0.8em;color:#10b981;display:none">Saved ✓</span>
-      </div>
-    </div>
-
-    <!-- BambooHR Settings Panel -->
+    <!-- Settings Panel -->
     <div id="settings-panel" class="settings-panel">
+      <div class="settings-section">
+        <h3>Hour Targets</h3>
+        <div class="settings-row">
+          <label for="t-type">Period</label>
+          <select id="t-type">
+            <option value="day">Day</option>
+            <option value="week" selected>Week</option>
+            <option value="month">Month</option>
+          </select>
+        </div>
+        <div class="settings-row settings-row-flush">
+          <label class="settings-check">
+            <input type="checkbox" id="t-weekends" />
+            Exclude weekends from averages and target progress
+          </label>
+        </div>
+        <div id="t-desktop-rows" class="target-desktop-rows"></div>
+        <div class="settings-actions">
+          <button id="targets-save">Save</button>
+          <span id="targets-saved" class="settings-status status-ok" style="display:none">Saved ✓</span>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>Export</h3>
+        <div class="settings-actions" style="padding-left:0; margin-top:0">
+          <button id="export-btn">Export CSV</button>
+          <span class="settings-status status-info">Download your full history as a spreadsheet.</span>
+        </div>
+      </div>
       <div class="settings-section">
         <h3>BambooHR Integration</h3>
         <div class="settings-row">
@@ -1223,16 +1208,11 @@
         container.appendChild(frag);
       }
 
-      document.getElementById('targets-btn').addEventListener('click', () => {
-        const panel   = document.getElementById('targets-panel');
-        const opening = !panel.classList.contains('open');
-        panel.classList.toggle('open');
-        if (opening) {
-          document.getElementById('t-type').value       = targetConfig.targetType  || 'week';
-          document.getElementById('t-weekends').checked = !!targetConfig.excludeWeekends;
-          buildTargetDesktopRows();
-        }
-      });
+      function loadTargetsIntoPanel() {
+        document.getElementById('t-type').value       = targetConfig.targetType  || 'week';
+        document.getElementById('t-weekends').checked = !!targetConfig.excludeWeekends;
+        buildTargetDesktopRows();
+      }
 
       document.getElementById('targets-save').addEventListener('click', () => {
         const desktops = {};
@@ -1281,7 +1261,10 @@
       document.getElementById('settings-btn').addEventListener('click', () => {
         const panel  = document.getElementById('settings-panel');
         const isOpen = panel.classList.toggle('open');
-        if (isOpen) loadSettingsPanel();
+        if (isOpen) {
+          loadTargetsIntoPanel();
+          loadSettingsPanel();
+        }
       });
 
       document.getElementById('bh-reveal').addEventListener('click', () => {
