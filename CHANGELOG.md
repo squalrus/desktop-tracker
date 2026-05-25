@@ -17,7 +17,7 @@ All notable changes to Desktop Tracker are documented here.
 - **avg/week on month cards** — month cards now show avg/day, avg/week, and tracked-days count on separate lines (PR #21).
 - **macOS port research** — `MACOS.md` documents the Spaces API situation, five alternative Space-detection strategies (config mapping, tray registration, app-context mapping, notification-driven detection, window probe), and build pipeline considerations for a future macOS port.
 - **CONTRIBUTING.md** — technical architecture, file reference, build pipeline details, and contributing guidelines.
-- **BambooHR integration** — sync tracked desktop time to BambooHR Time Tracking:
+- **BambooHR integration (beta)** — sync tracked desktop time to BambooHR Time Tracking. Marked beta pending end-to-end verification against a live BambooHR account on a separate machine.
   - `GET/POST /api/bamboohr/config` — read and write credentials locally (API key masked as `****` in responses)
   - `GET /api/bamboohr/projects` — proxy project list from BambooHR API
   - `POST /api/bamboohr/sync` — sync a selected date; deletes previous entries on re-sync to prevent double-counting; configurable time rounding (15 min default, 6 min, or exact)

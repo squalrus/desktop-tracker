@@ -14,7 +14,7 @@ A lightweight Windows app that quietly tracks how much time you spend on each Vi
 - **Charts** — donut chart for the day split; stacked bar charts for week and month
 - **Desktop filter** — scope all three views to one or more desktops simultaneously
 - **Hour targets** — set a per-desktop target (daily, weekly, or monthly); the other periods extrapolate automatically. Progress bars appear on every card and in section headers. Optionally exclude weekends from calculations.
-- **BambooHR integration** — sync tracked time directly to BambooHR Time Tracking, mapped per desktop to a project
+- **BambooHR integration (beta)** — sync tracked time directly to BambooHR Time Tracking, mapped per desktop to a project
 - **Historical data & CSV export** — browse any past day with the date picker; export everything to a spreadsheet with one click
 - **Privacy first** — all data is stored locally in `desktop_data.json`. No cloud syncing, no accounts
 - **Automatic dark mode** — matches your system or browser theme
@@ -56,7 +56,9 @@ Progress bars on each card show how close that desktop is to its own target — 
 
 ---
 
-## 🔗 BambooHR Integration
+## 🔗 BambooHR Integration (beta)
+
+> **Beta:** this integration has not yet been verified end-to-end against a live BambooHR account. Please report any issues on the [issues page](../../issues).
 
 The dashboard can sync tracked time directly to BambooHR's Daily Totals time tracking. You will need your BambooHR API key and your company's subdomain.
 
