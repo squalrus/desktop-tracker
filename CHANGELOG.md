@@ -12,7 +12,7 @@ All notable changes to Desktop Tracker are documented here.
 - **Aggregate target bar** — section headers show a combined progress bar for all desktops that have a target, with text: `28h of 38h target · 74% · 10h to go`.
 - **Target reference line on bar charts** — a dashed green horizontal line on the week and month bar charts marks the daily target level, filter-aware so it adjusts when you scope to a single desktop.
 - **Exclude weekends toggle** — when enabled, Saturday and Sunday are excluded from avg/day, avg/week, tracked-day counts, and target progress calculations. Weekend days still appear in charts but are not counted toward any target.
-- **Targets settings panel** — accessible from a **Targets** button in the header. Shows one row per known desktop with a number input, a shared period selector, and the exclude-weekends checkbox.
+- **Targets settings** — set per-desktop hour goals via the gear-icon settings panel. Shows one row per known desktop with a number input, a shared period selector, and the exclude-weekends checkbox.
 - **Desktop filter dropdown** — multi-select dropdown in the header controls. Filter to one or more desktops; the selection applies simultaneously to day, week, and month views including all cards and charts. Button label updates to reflect the active selection (PR #20).
 - **avg/week on month cards** — month cards now show avg/day, avg/week, and tracked-days count on separate lines (PR #21).
 - **macOS port research** — `MACOS.md` documents the Spaces API situation, five alternative Space-detection strategies (config mapping, tray registration, app-context mapping, notification-driven detection, window probe), and build pipeline considerations for a future macOS port.
@@ -29,6 +29,7 @@ All notable changes to Desktop Tracker are documented here.
 ### Changed
 - `install_autostart.bat` updated to launch `DesktopTracker.exe` directly rather than `pythonw.exe tracker.py` (PR #19).
 - HTTP handler extended to support `/api/*` routing alongside existing static file serving — `QuietHandler` now intercepts API paths and falls through to `SimpleHTTPRequestHandler` for everything else.
+- **Settings consolidated** — Targets and Export CSV moved from the header into the gear-icon settings panel alongside the BambooHR section. Panel uses a responsive 2-column grid that collapses to one column on narrow viewports.
 - README restructured — user-facing content in `README.md`; technical detail in `CONTRIBUTING.md`.
 
 ---
