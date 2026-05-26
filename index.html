@@ -280,7 +280,9 @@
       .settings-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
       .settings-row > label:first-child { width: 130px; font-size: 0.84em; color: var(--muted); flex-shrink: 0; }
       .settings-row input[type="text"],
-      .settings-row input[type="password"] {
+      .settings-row input[type="password"],
+      .settings-row input[type="date"],
+      .settings-row input[type="number"] {
         flex: 1; max-width: 300px; padding: 6px 10px; border-radius: 6px;
         border: 1px solid var(--border); background: var(--bg);
         color: var(--text); font-size: 0.86em;
@@ -393,6 +395,29 @@
         <div class="settings-actions">
           <button id="targets-save">Save</button>
           <span id="targets-saved" class="settings-status status-ok" style="display:none">Saved ✓</span>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>Adjust Time</h3>
+        <div class="settings-row">
+          <label for="adj-date">Date</label>
+          <input id="adj-date" type="date" />
+        </div>
+        <div class="settings-row">
+          <label for="adj-from">From</label>
+          <select id="adj-from" class="mapping-select" style="max-width:260px"></select>
+        </div>
+        <div class="settings-row">
+          <label for="adj-to">To</label>
+          <select id="adj-to" class="mapping-select" style="max-width:260px"></select>
+        </div>
+        <div class="settings-row">
+          <label for="adj-minutes">Minutes</label>
+          <input id="adj-minutes" type="number" min="1" step="1" placeholder="15" style="max-width:120px" />
+        </div>
+        <div class="settings-actions">
+          <button id="adj-move">Move</button>
+          <span id="adj-status" class="settings-status"></span>
         </div>
       </div>
       <div class="settings-section">
@@ -1246,6 +1271,85 @@
         buildTargetDesktopRows();
       }
 
+      // ── Adjust Time panel ────────────────────────────────────────────
+      function buildAdjustDropdowns() {
+        const date    = document.getElementById('adj-date').value;
+        const day     = globalData[date] || {};
+        const fromSel = document.getElementById('adj-from');
+        const toSel   = document.getElementById('adj-to');
+        fromSel.innerHTML = '';
+        toSel.innerHTML   = '';
+
+        const fromOptions = Object.keys(day).filter(d => day[d] > 0).sort();
+        if (fromOptions.length === 0) {
+          const opt = document.createElement('option');
+          opt.value = ''; opt.textContent = '— no tracked desktops on this date —';
+          fromSel.appendChild(opt);
+        } else {
+          for (const d of fromOptions) {
+            const opt = document.createElement('option');
+            opt.value = d; opt.textContent = `${d} (${formatTime(day[d])})`;
+            fromSel.appendChild(opt);
+          }
+        }
+
+        const allKnown = [...new Set(
+          Object.values(globalData).flatMap(o => Object.keys(o))
+        )].sort();
+        for (const d of allKnown) {
+          const opt = document.createElement('option');
+          opt.value = d; opt.textContent = d;
+          toSel.appendChild(opt);
+        }
+      }
+
+      function loadAdjustIntoPanel() {
+        document.getElementById('adj-date').value    = document.getElementById('date-picker').value;
+        document.getElementById('adj-minutes').value = '';
+        document.getElementById('adj-status').textContent = '';
+        document.getElementById('adj-status').className   = 'settings-status';
+        buildAdjustDropdowns();
+      }
+
+      document.getElementById('adj-date').addEventListener('change', buildAdjustDropdowns);
+
+      document.getElementById('adj-move').addEventListener('click', async () => {
+        const date     = document.getElementById('adj-date').value;
+        const from     = document.getElementById('adj-from').value;
+        const to       = document.getElementById('adj-to').value;
+        const minutes  = parseFloat(document.getElementById('adj-minutes').value);
+        const statusEl = document.getElementById('adj-status');
+
+        function err(msg) {
+          statusEl.textContent = msg;
+          statusEl.className   = 'settings-status status-error';
+        }
+
+        if (!date || !from || !to) return err('Fill in all fields.');
+        if (from === to)            return err('From and To must differ.');
+        if (isNaN(minutes) || minutes <= 0) return err('Minutes must be positive.');
+
+        try {
+          const r = await fetch('/api/adjust', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ date, from, to, minutes }),
+          });
+          const result = await r.json();
+          if (r.ok) {
+            statusEl.textContent = `Moved ${minutes}m · ${from} → ${to}`;
+            statusEl.className   = 'settings-status status-ok';
+            document.getElementById('adj-minutes').value = '';
+            await fetchAndRenderData();
+            buildAdjustDropdowns();
+          } else {
+            err(result.error || 'Adjust failed.');
+          }
+        } catch (e) {
+          err('Network error.');
+        }
+      });
+
       document.getElementById('targets-save').addEventListener('click', () => {
         const desktops = {};
         for (const inp of document.querySelectorAll('.target-desktop-input')) {
@@ -1295,6 +1399,7 @@
         const isOpen = panel.classList.toggle('open');
         if (isOpen) {
           loadTargetsIntoPanel();
+          loadAdjustIntoPanel();
           loadSettingsPanel();
         }
       });

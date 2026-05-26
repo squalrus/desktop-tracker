@@ -188,6 +188,7 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
             ('POST', '/api/bamboohr/config'):   self._post_config,
             ('GET',  '/api/bamboohr/projects'): self._get_projects,
             ('POST', '/api/bamboohr/sync'):     self._post_sync,
+            ('POST', '/api/adjust'):            self._post_adjust,
         }
         handler = routes.get((method, path))
         if handler:
@@ -397,6 +398,55 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
             "skipped": skipped,
             "errors":  errors,
         })
+
+    def _post_adjust(self):
+        """Move tracked seconds between two desktops on a given date.
+        Mutates the in-memory `tracking_data` under `data_lock` so the next
+        tracker-thread flush doesn't clobber the change.
+        """
+        try:
+            body = self._read_body()
+        except (json.JSONDecodeError, ValueError):
+            self._send_json(400, {"error": "Invalid JSON"})
+            return
+
+        date_str  = (body.get("date") or "").strip()
+        from_desk = (body.get("from") or "").strip()
+        to_desk   = (body.get("to")   or "").strip()
+
+        if not date_str or not from_desk or not to_desk:
+            self._send_json(400, {"error": "date, from, and to are required"})
+            return
+        if from_desk == to_desk:
+            self._send_json(400, {"error": "from and to must differ"})
+            return
+        try:
+            minutes = float(body.get("minutes"))
+        except (TypeError, ValueError):
+            self._send_json(400, {"error": "minutes must be a number"})
+            return
+        if minutes <= 0:
+            self._send_json(400, {"error": "minutes must be positive"})
+            return
+
+        seconds = round(minutes * 60)
+
+        with data_lock:
+            day     = tracking_data.setdefault(date_str, {})
+            current = day.get(from_desk, 0)
+            if current < seconds:
+                self._send_json(400, {
+                    "error": f"{from_desk} only has {round(current/60, 1)} min on {date_str}"
+                })
+                return
+            day[from_desk] = current - seconds
+            if day[from_desk] == 0:
+                del day[from_desk]
+            day[to_desk] = day.get(to_desk, 0) + seconds
+            save_data(tracking_data)
+            day_snapshot = dict(day)
+
+        self._send_json(200, {"date": date_str, "data": day_snapshot})
 
 def tracker_loop():
     loop_count = 0
