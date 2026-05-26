@@ -35,15 +35,15 @@ BambooHR's API does not support CORS from browser origins. All BambooHR requests
   "api_key": "abc123def456",
   "employee_id": "42",
   "mappings": {
-    "Work":     "PROJECT_ID_A",
-    "Dev":      "PROJECT_ID_B",
+    "Work":     { "projectId": 101 },
+    "Dev":      { "projectId": 102, "taskId": 17 },
     "Personal": null
   },
   "synced_dates": {
     "2026-05-01": {
       "status":    "ok",
       "timestamp": "2026-05-01T17:05:00",
-      "entry_ids": ["1001", "1002"]
+      "entry_ids": [1001, 1002]
     }
   },
   "rounding":       "15min",
@@ -52,7 +52,7 @@ BambooHR's API does not support CORS from browser origins. All BambooHR requests
 }
 ```
 
-`mappings` maps each known desktop name to a BambooHR project ID, or `null` to skip that desktop. `synced_dates` stores the BambooHR entry IDs from each sync so re-syncing a day can delete them before creating new ones — preventing double-counting.
+`mappings` maps each known desktop name to a `{ projectId, taskId? }` object, or `null` to skip that desktop. `taskId` is required when the BambooHR project has tasks defined — the mapping UI shows a second dropdown for those projects and refuses to save until a task is picked. The legacy bare-projectId format (`"Work": 101`) is still read for backward compatibility but new saves always use the object form. `synced_dates` stores the BambooHR entry IDs from each sync so re-syncing a day can delete them before creating new ones — preventing double-counting.
 
 ---
 
@@ -115,9 +115,12 @@ Each mapped desktop becomes one entry inside the bulk `hours` array:
   "date":       "2026-05-02",
   "hours":      4.0,
   "projectId":  101,
+  "taskId":     17,
   "note":       "Tracked by Desktop Tracker"
 }
 ```
+
+`taskId` is included only when the mapping has one. Projects that don't use tasks omit the field; projects that do use tasks will return `400 MISSING_DATA` if `taskId` is missing, which is why the mapping UI requires it before saving.
 
 The store endpoint returns a 201 with an array of created entries in the same order as the request; entry IDs are pulled from that array and stored in `synced_dates` for later deletion on re-sync. The delete endpoint is idempotent — re-sending IDs that were already removed does not error.
 

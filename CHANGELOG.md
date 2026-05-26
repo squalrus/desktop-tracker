@@ -21,7 +21,7 @@ All notable changes to Desktop Tracker are documented here.
   - `GET/POST /api/bamboohr/config` — read and write credentials locally (API key masked as `****` in responses)
   - `GET /api/bamboohr/projects` — proxy project list from BambooHR API
   - `POST /api/bamboohr/sync` — sync a selected date; deletes previous entries on re-sync to prevent double-counting; configurable time rounding (15 min default, 6 min, or exact)
-  - Settings panel accessible from a gear icon — company domain, API key, per-desktop project mapping, rounding preference
+  - Settings panel accessible from a gear icon — company domain, API key, per-desktop project + task mapping (task picker appears for projects that require one), rounding preference
   - **Sync to BambooHR** button in the Day section with a status badge (last synced time, partial/full/error state)
   - Employee ID resolved automatically from the API key on first sync
   - See [BAMBOOHR.md](BAMBOOHR.md) for full design notes

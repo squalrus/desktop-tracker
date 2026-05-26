@@ -321,10 +321,18 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
                              body={"hourEntryIds": prev_ids})
 
         # Build the bulk entry list from mapped desktops; track skipped.
+        # Mapping value can be a bare projectId (legacy) or {projectId, taskId?}.
         entries = []
         skipped = []
         for desktop, seconds in day_data.items():
-            project_id = mappings.get(desktop)
+            m = mappings.get(desktop)
+            if isinstance(m, dict):
+                project_id = m.get("projectId")
+                task_id    = m.get("taskId")
+            else:
+                project_id = m
+                task_id    = None
+
             if not project_id:
                 skipped.append(desktop)
                 continue
@@ -334,16 +342,20 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
                 skipped.append(desktop)
                 continue
 
+            body = {
+                "employeeId": int(emp_id),
+                "date":       date_str,
+                "hours":      hours,
+                "projectId":  int(project_id),
+                "note":       "Tracked by Desktop Tracker",
+            }
+            if task_id:
+                body["taskId"] = int(task_id)
+
             entries.append({
                 "desktop": desktop,
                 "hours":   hours,
-                "body": {
-                    "employeeId": int(emp_id),
-                    "date":       date_str,
-                    "hours":      hours,
-                    "projectId":  int(project_id),
-                    "note":       "Tracked by Desktop Tracker",
-                },
+                "body":    body,
             })
 
         synced = []
