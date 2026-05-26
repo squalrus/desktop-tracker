@@ -1374,6 +1374,28 @@
         }
       }
 
+      // Build (or rebuild) the task dropdown for a given project. Hidden when
+      // the project has no tasks. Returns the rendered <select>.
+      function buildTaskOptions(taskSel, projectId, selectedTaskId) {
+        taskSel.innerHTML = '';
+        const proj  = bhProjects.find(p => String(p.id) === String(projectId));
+        const tasks = (proj && proj.tasks) || [];
+        if (tasks.length === 0) {
+          taskSel.style.display = 'none';
+          return;
+        }
+        taskSel.style.display = '';
+        const skip = document.createElement('option');
+        skip.value = ''; skip.textContent = '— select task —';
+        taskSel.appendChild(skip);
+        for (const task of tasks) {
+          const opt = document.createElement('option');
+          opt.value = String(task.id); opt.textContent = task.name;
+          if (String(selectedTaskId) === String(task.id)) opt.selected = true;
+          taskSel.appendChild(opt);
+        }
+      }
+
       function renderMappings() {
         const desktops = [...new Set(
           Object.values(globalData).flatMap(d => Object.keys(d))
@@ -1388,19 +1410,39 @@
           const lbl = document.createElement('span');
           lbl.className = 'mapping-label';
           lbl.textContent = desktop;
-          const sel = document.createElement('select');
-          sel.className = 'mapping-select';
-          sel.dataset.desktop = desktop;
+
+          // Mapping may be a bare project ID (legacy) or {projectId, taskId?}.
+          const m = bhMappings[desktop];
+          const curProjectId = (m && typeof m === 'object') ? m.projectId : m;
+          const curTaskId    = (m && typeof m === 'object') ? m.taskId    : null;
+
+          const projSel = document.createElement('select');
+          projSel.className = 'mapping-select';
+          projSel.dataset.desktop = desktop;
+          projSel.dataset.role    = 'project';
           const skip = document.createElement('option');
           skip.value = ''; skip.textContent = '— skip —';
-          sel.appendChild(skip);
+          projSel.appendChild(skip);
           for (const proj of bhProjects) {
             const opt = document.createElement('option');
             opt.value = String(proj.id); opt.textContent = proj.name;
-            if (String(bhMappings[desktop]) === String(proj.id)) opt.selected = true;
-            sel.appendChild(opt);
+            if (String(curProjectId) === String(proj.id)) opt.selected = true;
+            projSel.appendChild(opt);
           }
-          row.appendChild(lbl); row.appendChild(sel);
+
+          const taskSel = document.createElement('select');
+          taskSel.className = 'mapping-select';
+          taskSel.dataset.desktop = desktop;
+          taskSel.dataset.role    = 'task';
+          buildTaskOptions(taskSel, curProjectId, curTaskId);
+
+          projSel.addEventListener('change', () => {
+            buildTaskOptions(taskSel, projSel.value, '');
+          });
+
+          row.appendChild(lbl);
+          row.appendChild(projSel);
+          row.appendChild(taskSel);
           frag.appendChild(row);
         }
         rows.appendChild(frag);
@@ -1408,9 +1450,27 @@
       }
 
       document.getElementById('bh-save-mappings').addEventListener('click', async () => {
-        const mappings = {};
-        for (const sel of document.querySelectorAll('.mapping-select'))
-          mappings[sel.dataset.desktop] = sel.value || null;
+        // Validate that any project requiring tasks has one selected.
+        const missingTask = [];
+        const mappings   = {};
+        for (const row of document.querySelectorAll('#mapping-rows .mapping-row')) {
+          const projSel = row.querySelector('select[data-role="project"]');
+          const taskSel = row.querySelector('select[data-role="task"]');
+          const desktop = projSel.dataset.desktop;
+          const pid     = projSel.value;
+          if (!pid) { mappings[desktop] = null; continue; }
+          const proj   = bhProjects.find(p => String(p.id) === pid);
+          const hasTasks = proj && proj.tasks && proj.tasks.length > 0;
+          const tid    = taskSel.value;
+          if (hasTasks && !tid) { missingTask.push(desktop); continue; }
+          mappings[desktop] = tid
+            ? { projectId: parseInt(pid, 10), taskId: parseInt(tid, 10) }
+            : { projectId: parseInt(pid, 10) };
+        }
+        if (missingTask.length > 0) {
+          bhMapStatus(`Select a task for: ${missingTask.join(', ')}`, 'error');
+          return;
+        }
         bhMappings = mappings;
         try {
           const r = await fetch('/api/bamboohr/config', {
