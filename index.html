@@ -586,7 +586,7 @@
       // ── Donut chart ───────────────────────────────────────────────────
       // Each ring segment uses stroke-dasharray + stroke-dashoffset.
       // dashoffset = circ/4 − cumulative so segments start at 12 o'clock.
-      function renderDonut(container, data) {
+      function renderDonut(container, data, target = 0) {
         container.innerHTML = '';
         const entries = Object.entries(data).sort(([a],[b]) => a.localeCompare(b));
         const total   = entries.reduce((s,[,v]) => s + v, 0);
@@ -627,20 +627,26 @@
         tBig.textContent = formatTime(total);
         svg.appendChild(tBig);
 
+        const overTarget = target > 0 && total >= target;
+        const subText = target > 0
+          ? `of ${fmtH(target / 3600)} · ${Math.round((total / target) * 100)}%`
+          : 'today';
         const tSub = svgEl('text', {
           x: cx, y: cy + 11, 'text-anchor': 'middle',
-          fill: 'var(--muted)', 'font-size': '9', 'font-family': 'Segoe UI,sans-serif'
+          fill: overTarget ? '#10b981' : 'var(--muted)',
+          'font-size': '9', 'font-family': 'Segoe UI,sans-serif'
         });
-        tSub.textContent = 'today';
+        tSub.textContent = subText;
         svg.appendChild(tSub);
 
         container.appendChild(svg);
       }
 
       // ── Stacked bar chart ─────────────────────────────────────────────
-      // days = [{ label, totals: {desktop: seconds}, isSelected? }]
-      // targetSecsPerBar: optional daily target in seconds — draws a reference line
-      function renderBarChart(container, days, compact, targetSecsPerBar) {
+      // days = [{ label, totals: {desktop: seconds}, isSelected?, target?, isPast? }]
+      //   target  — daily target in seconds (0/missing = no tick, no fade)
+      //   isPast  — true for days strictly before today; missed-target bars are faded
+      function renderBarChart(container, days, compact) {
         container.innerHTML = '';
         const allDesktops = [...new Set(days.flatMap(d => Object.keys(d.totals)))].sort();
         if (allDesktops.length === 0) return;
@@ -664,8 +670,12 @@
         const n    = days.length;
         const gap  = n > 20 ? 2 : n > 10 ? 3 : 5;
         const barW = Math.max(4, (plotW - gap * (n - 1)) / n);
+        // Include targets in maxTotal so the tick stays inside the plot area
+        // even when every bar is below target.
         const maxTotal = Math.max(
-          ...days.map(d => Object.values(d.totals).reduce((s,v) => s+v, 0)), 1
+          ...days.map(d => Object.values(d.totals).reduce((s,v) => s+v, 0)),
+          ...days.map(d => d.target || 0),
+          1
         );
 
         const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}` });
@@ -678,12 +688,15 @@
         }));
 
         for (let i = 0; i < n; i++) {
-          const { label, totals, isSelected } = days[i];
+          const { label, totals, isSelected, target = 0, isPast = false } = days[i];
           const x        = ml + i * (barW + gap);
           const dayTotal = Object.values(totals).reduce((s,v) => s+v, 0);
+          const missed   = target > 0 && isPast && dayTotal < target;
+
+          const barGroup = svgEl('g', missed ? { opacity: '0.45' } : {});
 
           if (dayTotal === 0) {
-            svg.appendChild(svgEl('rect', {
+            barGroup.appendChild(svgEl('rect', {
               x, y: mt + plotH - 2, width: barW, height: 2,
               fill: 'var(--bar-bg)', rx: 1
             }));
@@ -699,8 +712,23 @@
               const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
               title.textContent = `${label} · ${desktop}: ${formatTime(totals[desktop])}`;
               rect.appendChild(title);
-              svg.appendChild(rect);
+              barGroup.appendChild(rect);
             }
+          }
+          svg.appendChild(barGroup);
+
+          // Per-bar target tick — drawn over the bar so it stays visible
+          // whether the bar exceeded the target or fell short.
+          if (target > 0) {
+            const tickY = mt + plotH - Math.min(target / maxTotal, 1) * plotH;
+            const tick  = svgEl('line', {
+              x1: x, y1: tickY, x2: x + barW, y2: tickY,
+              stroke: '#10b981', 'stroke-width': 2, opacity: 0.9
+            });
+            const tickTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+            tickTitle.textContent = `Target: ${fmtH(target / 3600)}`;
+            tick.appendChild(tickTitle);
+            svg.appendChild(tick);
           }
 
           // Underline the selected day
@@ -722,27 +750,17 @@
           svg.appendChild(t);
         }
 
-        // Target reference line
-        if (targetSecsPerBar > 0 && targetSecsPerBar < maxTotal) {
-          const ty = mt + plotH - (targetSecsPerBar / maxTotal) * plotH;
-          svg.appendChild(svgEl('line', {
-            x1: ml, y1: ty, x2: W - mr, y2: ty,
-            stroke: '#10b981', 'stroke-width': '1.5',
-            'stroke-dasharray': '4 3', opacity: '0.8'
-          }));
-          const dailyH = targetSecsPerBar / 3600;
-          const tLbl   = svgEl('text', {
-            x: W - mr - 2, y: ty - 3, 'text-anchor': 'end',
-            'font-size': '8', fill: '#10b981', 'font-family': 'Segoe UI,sans-serif'
-          });
-          tLbl.textContent = fmtH(dailyH);
-          svg.appendChild(tLbl);
-        }
-
         container.appendChild(svg);
       }
 
       // ── Date helpers ──────────────────────────────────────────────────
+      function todayStr() {
+        const d = new Date();
+        return d.getFullYear() + '-' +
+          String(d.getMonth() + 1).padStart(2, '0') + '-' +
+          String(d.getDate()).padStart(2, '0');
+      }
+
       function getWeekDays(dateStr) {
         const d   = new Date(dateStr + 'T00:00:00');
         const mon = new Date(d);
@@ -813,7 +831,13 @@
         for (const [desktop, secs] of Object.entries(data).sort(([a],[b]) => a.localeCompare(b)))
           frag.appendChild(makeCard(desktop, secs, total, null, getTargetH(1, desktop)));
         el.appendChild(frag);
-        renderDonut(document.getElementById('day-donut'), data);
+
+        // Donut target = sum of visible desktops' daily targets (0 on excluded weekends).
+        const visDay = activeFilter.size > 0 ? [...activeFilter] : allDesktops();
+        const dayTgtSecs = (targetConfig.excludeWeekends && isWeekend(sel))
+          ? 0
+          : visDay.reduce((s,d) => s + (getTargetH(1, d) || 0), 0) * 3600;
+        renderDonut(document.getElementById('day-donut'), data, dayTgtSecs);
         updateSyncUI(sel);
       }
 
@@ -876,15 +900,21 @@
         }
         el.appendChild(frag);
 
-        // Bar chart: target line = sum of daily rates for visible desktops
-        const vis       = activeFilter.size > 0 ? [...activeFilter] : allDesktops();
-        const dailyTgtH = vis.reduce((s,d) => s + (getTargetH(1, d) || 0), 0);
-        const LABELS    = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        // Bar chart: per-bar target tick + fade for missed past days.
+        const vis          = activeFilter.size > 0 ? [...activeFilter] : allDesktops();
+        const dailyTgtSecs = vis.reduce((s,d) => s + (getTargetH(1, d) || 0), 0) * 3600;
+        const LABELS       = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        const today        = todayStr();
         renderBarChart(
           document.getElementById('week-chart'),
-          days.map((d, i) => ({ label: LABELS[i], totals: applyFilter(globalData[d] || {}), isSelected: d === sel })),
-          false,
-          dailyTgtH > 0 ? dailyTgtH * 3600 : null
+          days.map((d, i) => ({
+            label:      LABELS[i],
+            totals:     applyFilter(globalData[d] || {}),
+            isSelected: d === sel,
+            target:     (targetConfig.excludeWeekends && isWeekend(d)) ? 0 : dailyTgtSecs,
+            isPast:     d < today,
+          })),
+          false
         );
       }
 
@@ -972,18 +1002,20 @@
         }
         el.appendChild(frag);
 
-        // Bar chart: target line = sum of daily rates for visible desktops
-        const vis       = activeFilter.size > 0 ? [...activeFilter] : allDesktops();
-        const dailyTgtH = vis.reduce((s,d) => s + (getTargetH(1, d) || 0), 0);
+        // Bar chart: per-bar target tick + fade for missed past days.
+        const vis          = activeFilter.size > 0 ? [...activeFilter] : allDesktops();
+        const dailyTgtSecs = vis.reduce((s,d) => s + (getTargetH(1, d) || 0), 0) * 3600;
+        const today        = todayStr();
         renderBarChart(
           document.getElementById('month-chart'),
           days.map(d => ({
-            label: String(parseInt(d.split('-')[2])),
-            totals: applyFilter(globalData[d] || {}),
-            isSelected: d === sel
+            label:      String(parseInt(d.split('-')[2])),
+            totals:     applyFilter(globalData[d] || {}),
+            isSelected: d === sel,
+            target:     (targetConfig.excludeWeekends && isWeekend(d)) ? 0 : dailyTgtSecs,
+            isPast:     d < today,
           })),
-          true,
-          dailyTgtH > 0 ? dailyTgtH * 3600 : null
+          true
         );
       }
 
