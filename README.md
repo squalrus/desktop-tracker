@@ -14,7 +14,7 @@ A lightweight Windows app that quietly tracks how much time you spend on each Vi
 - **Charts** — donut chart for the day split; stacked bar charts for week and month
 - **Desktop filter** — scope all three views to one or more desktops simultaneously
 - **Hour targets** — set a per-desktop target (daily, weekly, or monthly); the other periods extrapolate automatically. Progress bars appear on every card and in section headers. Optionally exclude weekends from calculations.
-- **BambooHR integration (beta)** — sync tracked time directly to BambooHR Time Tracking, mapped per desktop to a project
+- **BambooHR integration** — sync tracked time directly to BambooHR Time Tracking, mapped per desktop to a project
 - **Historical data & CSV export** — browse any past day with the date picker; export everything to a spreadsheet with one click
 - **Privacy first** — all data is stored locally in `desktop_data.json`. No cloud syncing, no accounts
 - **Automatic dark mode** — matches your system or browser theme
@@ -39,7 +39,7 @@ The dashboard has three sections — **Day**, **Week**, and **Month** — all dr
 - Use the **date picker** to navigate to any past day
 - Use the **desktop filter** to focus on one or more desktops across all three views
 - Each section shows a total, a daily average, and a breakdown per desktop
-- Click the **⚙ gear icon** to open the settings panel — hour targets, CSV export, and BambooHR integration all live here
+- Click the **⚙ gear icon** to open the settings panel — hour targets, time adjustments, CSV export, and BambooHR integration all live here
 
 ---
 
@@ -56,9 +56,19 @@ Progress bars on each card show how close that desktop is to its own target — 
 
 ---
 
-## 🔗 BambooHR Integration (beta)
+## ✏️ Adjust Time
 
-> **Beta:** this integration has not yet been verified end-to-end against a live BambooHR account. Please report any issues on the [issues page](../../issues).
+If a chunk of time was tracked against the wrong desktop, you can move it without stopping the tracker.
+
+1. Click **⚙** in the top-right and find the **Adjust Time** section
+2. Pick the **Date**, **From** desktop, **To** desktop, and **Minutes**
+3. Click **Move**
+
+The change is applied immediately to the running tracker's in-memory data, so it survives the next disk flush. Refuses transfers where the From desktop doesn't have enough tracked time on that date.
+
+---
+
+## 🔗 BambooHR Integration
 
 The dashboard can sync tracked time directly to BambooHR's Daily Totals time tracking. You will need your BambooHR API key and your company's subdomain.
 

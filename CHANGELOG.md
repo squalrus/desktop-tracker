@@ -17,7 +17,7 @@ All notable changes to Desktop Tracker are documented here.
 - **avg/week on month cards** — month cards now show avg/day, avg/week, and tracked-days count on separate lines (PR #21).
 - **macOS port research** — `MACOS.md` documents the Spaces API situation, five alternative Space-detection strategies (config mapping, tray registration, app-context mapping, notification-driven detection, window probe), and build pipeline considerations for a future macOS port.
 - **CONTRIBUTING.md** — technical architecture, file reference, build pipeline details, and contributing guidelines.
-- **BambooHR integration (beta)** — sync tracked desktop time to BambooHR Time Tracking. Marked beta pending end-to-end verification against a live BambooHR account on a separate machine.
+- **BambooHR integration** — sync tracked desktop time to BambooHR Time Tracking, verified end-to-end against a live BambooHR account.
   - `GET/POST /api/bamboohr/config` — read and write credentials locally (API key masked as `****` in responses)
   - `GET /api/bamboohr/projects` — proxy project list from BambooHR API
   - `POST /api/bamboohr/sync` — sync a selected date; deletes previous entries on re-sync to prevent double-counting; configurable time rounding (15 min default, 6 min, or exact)
@@ -30,6 +30,7 @@ All notable changes to Desktop Tracker are documented here.
 - `install_autostart.bat` updated to launch `DesktopTracker.exe` directly rather than `pythonw.exe tracker.py` (PR #19).
 - HTTP handler extended to support `/api/*` routing alongside existing static file serving — `QuietHandler` now intercepts API paths and falls through to `SimpleHTTPRequestHandler` for everything else.
 - **Settings consolidated** — Targets and Export CSV moved from the header into the gear-icon settings panel alongside the BambooHR section. Panel uses a responsive 2-column grid that collapses to one column on narrow viewports.
+- **Adjust Time** — new section in the gear settings panel to move minutes from one desktop to another on a given date without stopping the tracker. Backed by `POST /api/adjust`, which mutates `tracking_data` under the same lock the tracker thread uses for its 5-second flushes, so the change survives the next save.
 - README restructured — user-facing content in `README.md`; technical detail in `CONTRIBUTING.md`.
 
 ---
