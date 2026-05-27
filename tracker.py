@@ -231,7 +231,7 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         existing = load_bamboohr_config()
         updated  = dict(existing)
 
-        for field in ("company_domain", "employee_id", "mappings",
+        for field in ("company_domain", "employee_id", "mappings", "rounding",
                       "auto_sync", "auto_sync_hour"):
             if field in body:
                 updated[field] = body[field]
