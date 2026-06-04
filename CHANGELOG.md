@@ -9,6 +9,7 @@ All notable changes to Desktop Tracker are documented here.
 ### Changed
 
 - **Day navigation arrows and Today button** — `‹` and `›` buttons flank the date picker to step backward or forward one day; a "Today" button jumps back to the current date and disables itself automatically when you're already viewing today. (`index.html`)
+- **Lighter calendar picker icon** — the calendar icon in the date picker is now visibly lighter via `filter: invert(0.6)`, making it easier to see against the dark card background. (`index.html`)
 
 ---
 
