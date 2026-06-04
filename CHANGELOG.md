@@ -4,6 +4,14 @@ All notable changes to Desktop Tracker are documented here.
 
 ---
 
+## [Build 8] — 2026-06-04
+
+### Changed
+
+- **Day navigation arrows and Today button** — `‹` and `›` buttons flank the date picker to step backward or forward one day; a "Today" button jumps back to the current date and disables itself automatically when you're already viewing today. (`index.html`)
+
+---
+
 ## [Build 7] — May 2026
 
 ### Added
