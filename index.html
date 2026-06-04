@@ -72,6 +72,10 @@
         cursor: pointer;
       }
       .controls button:hover { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+      .date-nav { display: flex; gap: 4px; align-items: center; }
+      .date-nav .nav-arrow { padding: 7px 9px; font-size: 1.15em; }
+      .date-nav #go-today:disabled { opacity: 0.38; cursor: default; pointer-events: none; }
+      #date-picker::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
 
       /* Sections */
       .view-section { margin-bottom: 44px; }
@@ -357,7 +361,12 @@
         <h1>Desktop Usage</h1>
       </div>
       <div class="controls">
-        <input type="date" id="date-picker" />
+        <div class="date-nav">
+          <button id="prev-day" class="nav-arrow" title="Previous day">&#8249;</button>
+          <input type="date" id="date-picker" />
+          <button id="next-day" class="nav-arrow" title="Next day">&#8250;</button>
+          <button id="go-today">Today</button>
+        </div>
         <div class="filter-wrap" id="filter-wrap">
           <button class="filter-btn" id="filter-btn">All Desktops ▾</button>
           <div class="filter-panel" id="filter-panel">
@@ -1045,6 +1054,21 @@
       }
 
       // ── Master render ─────────────────────────────────────────────────
+      function syncTodayBtn() {
+        document.getElementById('go-today').disabled =
+          document.getElementById('date-picker').value === todayStr();
+      }
+
+      function stepDay(delta) {
+        const picker = document.getElementById('date-picker');
+        const d = new Date((picker.value || todayStr()) + 'T00:00:00');
+        d.setDate(d.getDate() + delta);
+        picker.value = d.getFullYear() + '-' +
+          String(d.getMonth() + 1).padStart(2, '0') + '-' +
+          String(d.getDate()).padStart(2, '0');
+        renderAll();
+      }
+
       function renderAll() {
         const picker = document.getElementById('date-picker');
         if (!picker.value) {
@@ -1057,6 +1081,7 @@
         renderDay(picker.value);
         renderWeek(picker.value);
         renderMonth(picker.value);
+        syncTodayBtn();
       }
 
       async function fetchAndRenderData() {
@@ -1387,6 +1412,12 @@
       });
 
       document.getElementById('date-picker').addEventListener('change', renderAll);
+      document.getElementById('prev-day').addEventListener('click', () => stepDay(-1));
+      document.getElementById('next-day').addEventListener('click', () => stepDay(1));
+      document.getElementById('go-today').addEventListener('click', () => {
+        document.getElementById('date-picker').value = todayStr();
+        renderAll();
+      });
       loadBhConfig().then(() => fetchAndRenderData());
       setInterval(fetchAndRenderData, 10000);
 
