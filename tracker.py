@@ -189,6 +189,7 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
             ('GET',  '/api/bamboohr/projects'): self._get_projects,
             ('POST', '/api/bamboohr/sync'):     self._post_sync,
             ('POST', '/api/adjust'):            self._post_adjust,
+            ('POST', '/api/add-time'):          self._post_add_time,
         }
         handler = routes.get((method, path))
         if handler:
@@ -443,6 +444,39 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
             if day[from_desk] == 0:
                 del day[from_desk]
             day[to_desk] = day.get(to_desk, 0) + seconds
+            save_data(tracking_data)
+            day_snapshot = dict(day)
+
+        self._send_json(200, {"date": date_str, "data": day_snapshot})
+
+    def _post_add_time(self):
+        """Add tracked seconds to a desktop on a given date without requiring a source."""
+        try:
+            body = self._read_body()
+        except (json.JSONDecodeError, ValueError):
+            self._send_json(400, {"error": "Invalid JSON"})
+            return
+
+        date_str = (body.get("date")    or "").strip()
+        desktop  = (body.get("desktop") or "").strip()
+
+        if not date_str or not desktop:
+            self._send_json(400, {"error": "date and desktop are required"})
+            return
+        try:
+            minutes = float(body.get("minutes"))
+        except (TypeError, ValueError):
+            self._send_json(400, {"error": "minutes must be a number"})
+            return
+        if minutes <= 0:
+            self._send_json(400, {"error": "minutes must be positive"})
+            return
+
+        seconds = round(minutes * 60)
+
+        with data_lock:
+            day = tracking_data.setdefault(date_str, {})
+            day[desktop] = day.get(desktop, 0) + seconds
             save_data(tracking_data)
             day_snapshot = dict(day)
 

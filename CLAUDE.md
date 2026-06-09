@@ -32,6 +32,7 @@ A lightweight Windows tray app that silently tracks time spent per Virtual Deskt
 | `GET` | `/api/bamboohr/projects` | Proxies `time_tracking/employees/{id}/projects` from BambooHR |
 | `POST` | `/api/bamboohr/sync` | Bulk sync a date; deletes previous entries first; body: `{"date":"YYYY-MM-DD"}` |
 | `POST` | `/api/adjust` | Move minutes between desktops; body: `{"date","from","to","minutes"}` |
+| `POST` | `/api/add-time` | Add minutes directly to a desktop; body: `{"date","desktop","minutes"}` |
 
 ## BambooHR integration notes
 
