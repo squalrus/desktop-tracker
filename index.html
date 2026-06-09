@@ -304,6 +304,13 @@
       .settings-check input { accent-color: #3b82f6; cursor: pointer; }
       .input-with-toggle { display: flex; gap: 6px; flex: 1; max-width: 300px; }
       .input-with-toggle input { max-width: unset; flex: 1; }
+      .btn-toggle { display: flex; gap: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+      .btn-toggle-opt {
+        padding: 5px 14px; border: none; background: var(--card-bg); color: var(--muted);
+        font-size: 0.84em; cursor: pointer; transition: background 0.15s, color 0.15s;
+      }
+      .btn-toggle-opt:not(:last-child) { border-right: 1px solid var(--border); }
+      .btn-toggle-opt.active { background: #3b82f6; color: #fff; }
       .settings-actions {
         display: flex; align-items: center; gap: 8px;
         margin-top: 14px; padding-left: 142px; flex-wrap: wrap;
@@ -409,15 +416,22 @@
       <div class="settings-section">
         <h3>Adjust Time</h3>
         <div class="settings-row">
+          <label>Mode</label>
+          <div class="btn-toggle">
+            <button id="adj-mode-transfer" class="btn-toggle-opt active">Transfer</button>
+            <button id="adj-mode-add"      class="btn-toggle-opt">Add</button>
+          </div>
+        </div>
+        <div class="settings-row">
           <label for="adj-date">Date</label>
           <input id="adj-date" type="date" />
         </div>
-        <div class="settings-row">
+        <div class="settings-row" id="adj-from-row">
           <label for="adj-from">From</label>
           <select id="adj-from" class="mapping-select" style="max-width:260px"></select>
         </div>
         <div class="settings-row">
-          <label for="adj-to">To</label>
+          <label for="adj-to" id="adj-to-label">To</label>
           <select id="adj-to" class="mapping-select" style="max-width:260px"></select>
         </div>
         <div class="settings-row">
@@ -1297,6 +1311,20 @@
       }
 
       // ── Adjust Time panel ────────────────────────────────────────────
+      let adjMode = 'transfer'; // 'transfer' | 'add'
+
+      function setAdjMode(mode) {
+        adjMode = mode;
+        document.getElementById('adj-mode-transfer').classList.toggle('active', mode === 'transfer');
+        document.getElementById('adj-mode-add').classList.toggle('active', mode === 'add');
+        document.getElementById('adj-from-row').style.display = mode === 'transfer' ? '' : 'none';
+        document.getElementById('adj-to-label').textContent   = mode === 'transfer' ? 'To' : 'Desktop';
+        document.getElementById('adj-move').textContent       = mode === 'transfer' ? 'Move' : 'Add';
+        document.getElementById('adj-status').textContent = '';
+        document.getElementById('adj-status').className   = 'settings-status';
+        buildAdjustDropdowns();
+      }
+
       function buildAdjustDropdowns() {
         const date    = document.getElementById('adj-date').value;
         const day     = globalData[date] || {};
@@ -1336,11 +1364,12 @@
         buildAdjustDropdowns();
       }
 
+      document.getElementById('adj-mode-transfer').addEventListener('click', () => setAdjMode('transfer'));
+      document.getElementById('adj-mode-add').addEventListener('click',      () => setAdjMode('add'));
       document.getElementById('adj-date').addEventListener('change', buildAdjustDropdowns);
 
       document.getElementById('adj-move').addEventListener('click', async () => {
         const date     = document.getElementById('adj-date').value;
-        const from     = document.getElementById('adj-from').value;
         const to       = document.getElementById('adj-to').value;
         const minutes  = parseFloat(document.getElementById('adj-minutes').value);
         const statusEl = document.getElementById('adj-status');
@@ -1350,28 +1379,52 @@
           statusEl.className   = 'settings-status status-error';
         }
 
-        if (!date || !from || !to) return err('Fill in all fields.');
-        if (from === to)            return err('From and To must differ.');
         if (isNaN(minutes) || minutes <= 0) return err('Minutes must be positive.');
 
-        try {
-          const r = await fetch('/api/adjust', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ date, from, to, minutes }),
-          });
-          const result = await r.json();
-          if (r.ok) {
-            statusEl.textContent = `Moved ${minutes}m · ${from} → ${to}`;
-            statusEl.className   = 'settings-status status-ok';
-            document.getElementById('adj-minutes').value = '';
-            await fetchAndRenderData();
-            buildAdjustDropdowns();
-          } else {
-            err(result.error || 'Adjust failed.');
+        if (adjMode === 'add') {
+          if (!date || !to) return err('Fill in all fields.');
+          try {
+            const r = await fetch('/api/add-time', {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify({ date, desktop: to, minutes }),
+            });
+            const result = await r.json();
+            if (r.ok) {
+              statusEl.textContent = `Added ${minutes}m to ${to}`;
+              statusEl.className   = 'settings-status status-ok';
+              document.getElementById('adj-minutes').value = '';
+              await fetchAndRenderData();
+              buildAdjustDropdowns();
+            } else {
+              err(result.error || 'Add failed.');
+            }
+          } catch (e) {
+            err('Network error.');
           }
-        } catch (e) {
-          err('Network error.');
+        } else {
+          const from = document.getElementById('adj-from').value;
+          if (!date || !from || !to) return err('Fill in all fields.');
+          if (from === to)            return err('From and To must differ.');
+          try {
+            const r = await fetch('/api/adjust', {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify({ date, from, to, minutes }),
+            });
+            const result = await r.json();
+            if (r.ok) {
+              statusEl.textContent = `Moved ${minutes}m · ${from} → ${to}`;
+              statusEl.className   = 'settings-status status-ok';
+              document.getElementById('adj-minutes').value = '';
+              await fetchAndRenderData();
+              buildAdjustDropdowns();
+            } else {
+              err(result.error || 'Adjust failed.');
+            }
+          } catch (e) {
+            err('Network error.');
+          }
         }
       });
 

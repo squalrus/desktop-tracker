@@ -4,6 +4,14 @@ All notable changes to Desktop Tracker are documented here.
 
 ---
 
+## [Build 9] — 2026-06-09
+
+### Added
+
+- **Add time to desktop** — new Transfer / Add mode toggle in the Adjust Time settings panel. Transfer mode works as before (move minutes from one desktop to another). Add mode lets you inject time directly into any desktop on any date without requiring a tracked source — useful for accounting for offline work. Backed by `POST /api/add-time`. (`tracker.py`, `index.html`)
+
+---
+
 ## [Build 8] — 2026-06-04
 
 ### Changed
