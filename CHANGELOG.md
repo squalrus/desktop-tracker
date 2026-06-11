@@ -4,6 +4,19 @@ All notable changes to Desktop Tracker are documented here.
 
 ---
 
+## [Build 10] — 2026-06-11
+
+### Changed
+
+- **Sync status shows date and time** — the "✓ Synced" / "⚠ Partial" badge in the Day section now displays the full date and time of the last successful sync, not just the time. (`index.html`)
+
+### Fixed
+
+- **Settings date fields stay in sync** — the "Adjust Time" date field in the settings panel now tracks the main date picker (and vice versa) while the settings panel is open, instead of going stale when you navigate to a different day. (`index.html`)
+- **Settings calendar icon visible in dark mode** — the date picker icon in the "Adjust Time" field now uses the same lightened filter as the main date picker, so it's no longer invisible against the dark background. (`index.html`)
+
+---
+
 ## [Build 9] — 2026-06-09
 
 ### Added
