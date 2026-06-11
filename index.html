@@ -75,7 +75,8 @@
       .date-nav { display: flex; gap: 4px; align-items: center; }
       .date-nav .nav-arrow { padding: 7px 9px; font-size: 1.15em; }
       .date-nav #go-today:disabled { opacity: 0.38; cursor: default; pointer-events: none; }
-      #date-picker::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+      #date-picker::-webkit-calendar-picker-indicator,
+      .settings-row input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
 
       /* Sections */
       .view-section { margin-bottom: 44px; }
@@ -1096,6 +1097,20 @@
         renderWeek(picker.value);
         renderMonth(picker.value);
         syncTodayBtn();
+        syncAdjustDate();
+      }
+
+      // Keep the "Adjust Time" date in the settings panel matched to the
+      // main date picker while the settings panel is open.
+      function syncAdjustDate() {
+        const panel = document.getElementById('settings-panel');
+        if (!panel.classList.contains('open')) return;
+        const picker  = document.getElementById('date-picker');
+        const adjDate = document.getElementById('adj-date');
+        if (adjDate.value !== picker.value) {
+          adjDate.value = picker.value;
+          buildAdjustDropdowns();
+        }
       }
 
       async function fetchAndRenderData() {
@@ -1366,7 +1381,15 @@
 
       document.getElementById('adj-mode-transfer').addEventListener('click', () => setAdjMode('transfer'));
       document.getElementById('adj-mode-add').addEventListener('click',      () => setAdjMode('add'));
-      document.getElementById('adj-date').addEventListener('change', buildAdjustDropdowns);
+      document.getElementById('adj-date').addEventListener('change', () => {
+        const picker  = document.getElementById('date-picker');
+        const adjDate = document.getElementById('adj-date').value;
+        if (picker.value !== adjDate) {
+          picker.value = adjDate;
+          renderAll();
+        }
+        buildAdjustDropdowns();
+      });
 
       document.getElementById('adj-move').addEventListener('click', async () => {
         const date     = document.getElementById('adj-date').value;
@@ -1696,10 +1719,12 @@
         const info = (bhConfig.synced_dates || {})[selectedDate];
         if (info) {
           const ts      = new Date(info.timestamp);
+          const dateStr = ts.toLocaleDateString(undefined,
+                          { month: 'short', day: 'numeric' });
           const timeStr = ts.toLocaleTimeString(undefined,
                           { hour: 'numeric', minute: '2-digit' });
           const label   = info.status === 'partial' ? '⚠ Partial' : '✓ Synced';
-          statusEl.textContent = `${label} at ${timeStr}`;
+          statusEl.textContent = `${label} ${dateStr} at ${timeStr}`;
           statusEl.className   = `sync-status ${info.status === 'ok' ? 'ok' : 'partial'}`;
         } else {
           statusEl.textContent = 'Not synced';
